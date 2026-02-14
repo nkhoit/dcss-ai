@@ -53,19 +53,34 @@ class DCSSGame:
         """Connect to DCSS webtiles server and login."""
         try:
             self._ws = WebTilesConnection(url)
-            self._ws.recv_messages(timeout=0.5)  # drain initial ping
+            self._ws.recv_messages(timeout=0.5)
             
-            # Register (ignore if exists)
-            try:
-                self._ws.register(username, password)
+            # Try register first (also logs in on success)
+            self._ws._send({"msg": "register", "username": username, "password": password, "email": ""})
+            reg_msgs = self._ws.recv_messages(timeout=2.0)
+            
+            registered = any(m.get("msg") == "login_success" for m in reg_msgs)
+            
+            if registered:
+                # Register succeeded and logged us in — go to lobby
+                self._ws._send({"msg": "go_lobby"})
+                found, lobby_msgs = self._ws.wait_for("go_lobby", timeout=10.0)
+                all_msgs = reg_msgs + lobby_msgs
+                # Extract game IDs
+                import re
+                for msg in all_msgs:
+                    if msg.get("msg") == "set_game_links":
+                        self._game_ids = re.findall(r'#play-([^"]+)"', msg.get("content", ""))
+                        break
+            else:
+                # User exists — login normally
+                # Need fresh connection since register may have corrupted state
                 self._ws.disconnect()
+                import time; time.sleep(0.2)
                 self._ws = WebTilesConnection(url)
                 self._ws.recv_messages(timeout=0.5)
-            except Exception:
-                pass
+                self._game_ids = self._ws.login(username, password)
             
-            # Login
-            self._game_ids = self._ws.login(username, password)
             self._connected = True
             return True
         except Exception as e:
@@ -346,8 +361,8 @@ class DCSSGame:
     def _act(self, *keys: str, timeout: float = 30.0) -> List[str]:
         """Send keys, wait for input_mode, return new messages.
         
-        Timeout prevents hangs. For long actions (explore big floor),
-        30s is generous but won't block forever.
+        Handles More prompts and death automatically.
+        Timeout prevents hangs.
         """
         if not self._ws or not self._in_game:
             return ["Not in game"]
@@ -357,31 +372,42 @@ class DCSSGame:
         for key in keys:
             self._ws.send_key(key)
         
-        # Wait for input_mode with mode=1 (normal input ready)
-        found, all_msgs = self._ws.wait_for("input_mode", "mode", 1, timeout=timeout)
+        # Poll for input_mode=1, handling blocking states inline
+        deadline = time.time() + timeout
+        got_input = False
         
-        # Process all received messages
-        for msg in all_msgs:
-            self._process_msg(msg)
-        
-        # Handle blocking states (More prompts, death, menus)
-        if not found and not self._is_dead:
-            # Check if we're in a blocking state
-            for msg in all_msgs:
+        while time.time() < deadline and not got_input and not self._is_dead:
+            remaining = deadline - time.time()
+            msgs = self._ws.recv_messages(timeout=min(1.0, remaining))
+            
+            for msg in msgs:
+                self._process_msg(msg)
                 mt = msg.get("msg")
                 if mt == "input_mode":
                     mode = msg.get("mode")
-                    if mode == 5:  # More prompt
-                        return self._act(" ")  # Press space
-                    elif mode == 7:  # Died
+                    if mode == 1:
+                        got_input = True
+                        break
+                    elif mode == 5:
+                        # More prompt — press space
+                        self._ws.send_key(" ")
+                    elif mode == 7:
+                        # Died
                         self._is_dead = True
                         self._in_game = False
+                        break
+                elif mt == "close":
+                    self._is_dead = True
+                    self._in_game = False
+                    break
             
-            # Try escape to clear any stuck state
-            self._ws.send_key("key_esc")
-            found2, more_msgs = self._ws.wait_for("input_mode", "mode", 1, timeout=3.0)
-            for msg in more_msgs:
-                self._process_msg(msg)
+            if got_input or self._is_dead:
+                break
+        
+        # Drain any remaining messages
+        leftover = self._ws.recv_messages(timeout=0.1)
+        for msg in leftover:
+            self._process_msg(msg)
         
         return self._messages[msg_start:]
     
