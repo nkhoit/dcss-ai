@@ -2,6 +2,31 @@
 
 You are playing Dungeon Crawl Stone Soup (DCSS) via Python commands in a long-running REPL. Your goal is to retrieve the Orb of Zot from the deepest level of the dungeon and escape alive.
 
+## Prerequisites
+
+### DCSS Server (Docker)
+The game runs on a local DCSS webtiles server via Docker. Before playing:
+
+```bash
+# Start the server
+cd ~/code/dcss-ai/server && sg docker -c "docker compose up -d"
+
+# Verify it's running
+sg docker -c "docker ps"  # should show dcss-webtiles on port 8080
+
+# Stop the server (game saves persist in the Docker volume)
+cd ~/code/dcss-ai/server && sg docker -c "docker compose down"
+```
+
+The `sg docker -c "..."` wrapper is needed because the openclaw user's docker group requires it.
+
+### Python Environment
+```bash
+cd ~/code/dcss-ai && source .venv/bin/activate
+```
+
+The venv at `~/code/dcss-ai/.venv` has all dependencies pre-installed (`dcss-api`, `mcp`, `websockets`).
+
 ## Memory System
 
 **DCSS is a long game. You will be compacted. Your context will be lost. Write things down.**
