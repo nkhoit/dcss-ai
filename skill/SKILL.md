@@ -20,28 +20,38 @@ Contents:
 **After compaction or restart:** Read this file FIRST, then reconnect to the game and call `dcss.get_state_text()` to reorient.
 
 ### `learnings.md` — Persistent Knowledge Base
-Append to this after every death or significant mistake. Never delete entries. Format:
+This file has two sections. Keep the whole file under ~100 lines.
 
-```
-## Death #N — [Character] — [Cause]
+**Structure:**
+```markdown
+# DCSS Learnings
+
+## Core Rules
+- [Distilled wisdom — one line per rule, max ~40 lines]
+
+## Recent Deaths
+### Death #N — [Character] XL:X — [Cause] on [Floor]
 - What happened
 - What I should have done
-- Rule to follow in future
 ```
 
-Also record discoveries:
-```
-## Insight — [Topic]
-- What I learned
-```
+**After each death:** Append a new entry to Recent Deaths.
 
-Examples of things to record:
-- "Hydras grow heads when hit with edged weapons — use clubs/maces or spells"
-- "Don't berserk when surrounded — you can't retreat while berserk-exhausted"
-- "Sigmund on D:2 at XL 2 = run. Come back at XL 5+"
-- "Always carry at least 2 teleport scrolls after D:5"
+**Every 10 deaths (or when file exceeds ~100 lines):** Synthesize.
+1. Read all Recent Deaths entries
+2. Extract patterns and promote them to Core Rules (merge with existing, deduplicate)
+3. Keep only the last 5 Recent Deaths entries, delete older ones
+4. Core Rules should be tight — one line per rule, no fluff
 
-**Before starting a new game:** Read this file. Apply everything you've learned.
+**Core Rules examples:**
+- Never melee hydras with bladed weapons — use clubs, spells, or wands
+- Don't berserk when surrounded — post-exhaustion = death
+- Sigmund below XL:5 = run. Come back later.
+- Always carry 2+ teleport scrolls after D:5
+- Retreat to corridors when facing 2+ enemies — fight 1v1
+- Rest after every fight before exploring further
+
+**Before starting a new game:** Read this file. Core Rules are your accumulated wisdom — follow them.
 
 ### File Locations
 All memory files go in the skill directory alongside this file:
