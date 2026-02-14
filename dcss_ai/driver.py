@@ -53,6 +53,9 @@ class OverlayParams(BaseModel):
 class DeathParams(BaseModel):
     cause: str = Field(default="", description="Brief cause of death")
 
+class LearningParams(BaseModel):
+    text: str = Field(description="A lesson learned from this game. Be specific and actionable.")
+
 class StartGameParams(BaseModel):
     species_key: str = Field(default="b", description="Species key (b=Minotaur)")
     background_key: str = Field(default="f", description="Background key (f=Berserker)")
@@ -229,11 +232,32 @@ def build_dcss_tools(dcss: DCSSGame) -> list:
         dcss.record_win()
         return f"Win #{dcss._wins} recorded!"
 
+    # --- Learnings ---
+
+    learnings_path = Path(__file__).parent.parent / "skill" / "learnings.md"
+
+    @define_tool(description="Append a lesson to learnings.md. Call after every death AND every win. Be specific: what happened, why, what to do differently. These persist across all future games.")
+    def write_learning(params: LearningParams) -> str:
+        with open(learnings_path, 'a') as f:
+            f.write(f"\n- {params.text}")
+        return "Learning recorded."
+
     # --- Game lifecycle ---
 
-    @define_tool(description="Start a new DCSS game. Default: Minotaur Berserker (species=b, bg=f, weapon=b).")
+    @define_tool(description="Start a new DCSS game. Default: Minotaur Berserker (species=b, bg=f, weapon=b). Abandons any existing save first.")
     def start_game(params: StartGameParams) -> str:
-        return dcss.start_game(params.species_key, params.background_key, params.weapon_key)
+        # Abandon any stale save from a previous session
+        if dcss._in_game:
+            dcss.quit_game()
+        # Try starting — if there's a save, abandon it and retry
+        try:
+            return dcss.start_game(params.species_key, params.background_key, params.weapon_key)
+        except Exception:
+            try:
+                dcss.quit_game()
+            except Exception:
+                pass
+            return dcss.start_game(params.species_key, params.background_key, params.weapon_key)
 
     return [
         get_state_text, get_map, get_inventory, get_nearby_enemies,
@@ -244,6 +268,7 @@ def build_dcss_tools(dcss: DCSSGame) -> list:
         attack, use_ability, cast_spell, pray,
         confirm, deny, escape, send_keys,
         update_overlay, new_attempt, record_death, record_win,
+        write_learning,
         start_game,
     ]
 
@@ -332,8 +357,9 @@ class DCSSDriver:
                     "with Minotaur Berserker. Play the game — explore, fight, survive. "
                     "Call update_overlay() with a brief thought after every action. "
                     "When you die, call record_death() with the cause and reflect on what "
-                    "went wrong. If you win, call record_win() and reflect on what worked. "
-                    "Either way, share your learnings then say GAME_OVER."
+                    "went wrong — then call write_learning() for each lesson. "
+                    "If you win, call record_win() and call write_learning() with what worked. "
+                    "Then say GAME_OVER."
                 )
             }, timeout=7200)  # 2 hour timeout — games can be long
 

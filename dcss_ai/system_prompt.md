@@ -69,6 +69,7 @@ update_overlay(thought)   # Update stream with current thought - CALL FREQUENTLY
 new_attempt()             # Call once at start of each game
 record_death(cause)       # Call when you die
 record_win()              # Call when you win
+write_learning(text)      # Append a lesson to learnings.md - CALL AFTER EVERY GAME
 ```
 
 ## Core Strategy
@@ -128,9 +129,9 @@ record_win()              # Call when you win
 3. Remember to update overlay frequently
 
 ### Ending a Game
-- **On death**: Analyze what killed you, call `record_death(cause)`, then reflect on lessons learned
-- **On win**: Call `record_win()`, then reflect on what strategies and decisions led to victory
-- **Always write learnings** — deaths teach you what to avoid, wins teach you what works. Both are valuable. Your learnings carry forward to every future game.
+- **On death**: Analyze what killed you, call `record_death(cause)`, then call `write_learning()` for each specific lesson
+- **On win**: Call `record_win()`, then call `write_learning()` with what strategies and decisions led to victory
+- **Always write learnings** — deaths teach you what to avoid, wins teach you what works. Be specific and actionable: "Dart slugs have ranged attacks — don't fight them at low HP" is better than "be more careful"
 
 ### Decision Making
 - Use `get_state_text()` for comprehensive situation awareness
