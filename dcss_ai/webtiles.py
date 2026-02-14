@@ -41,13 +41,26 @@ class WebTilesConnection:
         self._ping_thread.start()
     
     def _ping_loop(self):
-        """Background thread that sends keepalive pings every 30s of inactivity."""
+        """Background thread that sends keepalive pings every 30s of inactivity.
+        Also drains incoming messages to catch and respond to server pings."""
         while not self._ping_stop.wait(10):
-            if time.time() - self._last_msg_time > 30:
-                try:
+            try:
+                # Drain any pending messages (this auto-responds to server pings via _decode)
+                if self._ws:
+                    try:
+                        raw = self._ws.recv(timeout=0)
+                        msgs = self._decode(raw)
+                        # Queue any non-ping messages for later processing
+                        for msg in msgs:
+                            if msg.get("msg") != "ping":
+                                self._queue.append(msg)
+                    except (TimeoutError, Exception):
+                        pass
+                # Also send proactive pong if idle
+                if time.time() - self._last_msg_time > 30:
                     self.ping()
-                except Exception:
-                    break
+            except Exception:
+                break
 
     def ping(self) -> None:
         """Send a keepalive ping to prevent server timeout."""
@@ -131,7 +144,8 @@ class WebTilesConnection:
         return False, all_msgs
     
     def _decode(self, raw) -> List[dict]:
-        """Decode a WebSocket frame into message dicts."""
+        """Decode a WebSocket frame into message dicts.
+        Automatically responds to server ping messages."""
         if isinstance(raw, bytes):
             # Binary: deflate-compressed
             data = raw + b'\x00\x00\xff\xff'
@@ -140,15 +154,26 @@ class WebTilesConnection:
             except Exception:
                 return []
             try:
-                return json.loads(text).get("msgs", [])
+                msgs = json.loads(text).get("msgs", [])
             except (json.JSONDecodeError, AttributeError):
                 return []
         elif isinstance(raw, str):
             try:
-                return json.loads(raw).get("msgs", [])
+                msgs = json.loads(raw).get("msgs", [])
             except (json.JSONDecodeError, AttributeError):
                 return []
-        return []
+        else:
+            return []
+        
+        # Auto-respond to server pings to prevent connection timeout
+        for msg in msgs:
+            if msg.get("msg") == "ping":
+                try:
+                    self._send({"msg": "pong"})
+                except Exception:
+                    pass
+        
+        return msgs
     
     # --- High-level protocol ---
     
