@@ -331,8 +331,9 @@ class DCSSDriver:
                     "Start a new DCSS game. Call new_attempt() first, then start_game() "
                     "with Minotaur Berserker. Play the game — explore, fight, survive. "
                     "Call update_overlay() with a brief thought after every action. "
-                    "When you die, call record_death() with the cause, reflect on what "
-                    "went wrong, then say GAME_OVER. If you win, call record_win() and say GAME_OVER."
+                    "When you die, call record_death() with the cause and reflect on what "
+                    "went wrong. If you win, call record_win() and reflect on what worked. "
+                    "Either way, share your learnings then say GAME_OVER."
                 )
             })
 

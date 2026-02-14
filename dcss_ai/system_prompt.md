@@ -128,9 +128,9 @@ record_win()              # Call when you win
 3. Remember to update overlay frequently
 
 ### Ending a Game
-- **On death**: Analyze what went wrong, call `record_death(cause)`, session ends
-- **On win**: Celebrate briefly, call `record_win()`, session ends
-- Write any important learnings before the session ends
+- **On death**: Analyze what killed you, call `record_death(cause)`, then reflect on lessons learned
+- **On win**: Call `record_win()`, then reflect on what strategies and decisions led to victory
+- **Always write learnings** — deaths teach you what to avoid, wins teach you what works. Both are valuable. Your learnings carry forward to every future game.
 
 ### Decision Making
 - Use `get_state_text()` for comprehensive situation awareness

@@ -21,8 +21,7 @@ driver.py
   │   │  record_death("orc priest")      │
   │   │  ...                             │
   │   │                                  │
-  │   └─ On death: write learnings, end session
-  │   └─ On win: celebrate, end session
+  │   └─ On death/win: write learnings, end session
   │   └─ Loop: new session with fresh context
   │
   └─ Stream overlay polls stats.json every 2s
