@@ -40,6 +40,17 @@ class DirectionParams(BaseModel):
 class SlotParams(BaseModel):
     key: str = Field(description="Inventory slot letter (a-z)")
 
+class SlotDirectionParams(BaseModel):
+    key: str = Field(description="Inventory slot letter (a-z)")
+    direction: str = Field(description="Direction: n/s/e/w/ne/nw/se/sw")
+
+class SlotOptionalDirectionParams(BaseModel):
+    key: str = Field(description="Inventory slot letter (a-z)")
+    direction: str = Field(default="", description="Direction: n/s/e/w/ne/nw/se/sw (optional)")
+
+class OptionalSlotParams(BaseModel):
+    key: str = Field(default="", description="Inventory slot letter (a-z), optional if only one worn")
+
 class SpellParams(BaseModel):
     key: str = Field(description="Spell slot letter")
     direction: str = Field(default="", description="Direction to cast: n/s/e/w/ne/nw/se/sw (optional)")
@@ -163,6 +174,41 @@ def build_dcss_tools(dcss: DCSSGame) -> list:
         msgs = dcss.drop(params.key)
         return "\n".join(msgs) if msgs else "Dropped."
 
+    @define_tool(description="Zap a wand by inventory slot letter, optionally in a direction.")
+    def zap_wand(params: SlotOptionalDirectionParams) -> str:
+        msgs = dcss.zap_wand(params.key, params.direction)
+        return "\n".join(msgs) if msgs else "Zapped."
+
+    @define_tool(description="Evoke a miscellaneous evocable item by inventory slot letter.")
+    def evoke(params: SlotParams) -> str:
+        msgs = dcss.evoke(params.key)
+        return "\n".join(msgs) if msgs else "Evoked."
+
+    @define_tool(description="Throw/fire an item at an enemy. Requires slot letter and direction.")
+    def throw_item(params: SlotDirectionParams) -> str:
+        msgs = dcss.throw_item(params.key, params.direction)
+        return "\n".join(msgs) if msgs else "Thrown."
+
+    @define_tool(description="Put on a ring or amulet by inventory slot letter.")
+    def put_on_jewelry(params: SlotParams) -> str:
+        msgs = dcss.put_on_jewelry(params.key)
+        return "\n".join(msgs) if msgs else "Put on."
+
+    @define_tool(description="Remove a ring or amulet. Slot letter optional if only one worn.")
+    def remove_jewelry(params: OptionalSlotParams) -> str:
+        msgs = dcss.remove_jewelry(params.key)
+        return "\n".join(msgs) if msgs else "Removed."
+
+    @define_tool(description="Take off worn armour by inventory slot letter.")
+    def take_off_armour(params: SlotParams) -> str:
+        msgs = dcss.take_off_armour(params.key)
+        return "\n".join(msgs) if msgs else "Taken off."
+
+    @define_tool(description="Examine/describe an inventory item by slot letter. Shows stats and details.")
+    def examine(params: SlotParams) -> str:
+        msgs = dcss.examine(params.key)
+        return "\n".join(msgs) if msgs else "No description."
+
     # --- Combat & abilities ---
 
     @define_tool(description="Melee attack in a direction. Use when auto_fight is blocked at low HP.")
@@ -257,6 +303,8 @@ def build_dcss_tools(dcss: DCSSGame) -> list:
         move, auto_explore, auto_fight, rest, wait_turn,
         go_upstairs, go_downstairs,
         pickup, wield, wear, quaff, read_scroll, drop,
+        zap_wand, evoke, throw_item, put_on_jewelry, remove_jewelry,
+        take_off_armour, examine,
         attack, use_ability, cast_spell, pray,
         confirm, deny, escape, 
         update_overlay, new_attempt, record_death, record_win,

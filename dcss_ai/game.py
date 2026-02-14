@@ -341,11 +341,14 @@ class DCSSGame:
     def cast_spell(self, key: str, direction: str = "") -> List[str]:
         keys = ["z", key]
         if direction:
-            key_map = {"n":"key_dir_n","s":"key_dir_s","e":"key_dir_e","w":"key_dir_w",
-                       "ne":"key_dir_ne","nw":"key_dir_nw","se":"key_dir_se","sw":"key_dir_sw"}
-            if direction.lower() in key_map:
-                keys.append(key_map[direction.lower()])
+            keys.append(self._dir_key(direction))
         return self._act(*keys)
+    
+    def _dir_key(self, direction: str) -> str:
+        """Convert direction string to DCSS key."""
+        key_map = {"n":"key_dir_n","s":"key_dir_s","e":"key_dir_e","w":"key_dir_w",
+                   "ne":"key_dir_ne","nw":"key_dir_nw","se":"key_dir_se","sw":"key_dir_sw"}
+        return key_map.get(direction.lower(), direction)
     
     def quaff(self, key: str) -> List[str]:
         return self._act("q", key)
@@ -378,6 +381,40 @@ class DCSSGame:
         """Raw key escape hatch."""
         return self._act(*list(keys))
     
+    def zap_wand(self, slot: str, direction: str = "") -> List[str]:
+        """Evoke/zap a wand from inventory by slot letter, optionally in a direction."""
+        keys = ["V", slot]
+        if direction:
+            keys.append(self._dir_key(direction))
+        return self._act(*keys)
+    
+    def evoke(self, slot: str) -> List[str]:
+        """Evoke a miscellaneous evocable item by slot letter."""
+        return self._act("v", slot)
+    
+    def throw_item(self, slot: str, direction: str) -> List[str]:
+        """Throw/fire an item in a direction."""
+        return self._act("F", slot, self._dir_key(direction))
+    
+    def put_on_jewelry(self, slot: str) -> List[str]:
+        """Put on a ring or amulet by slot letter."""
+        return self._act("P", slot)
+    
+    def remove_jewelry(self, slot: str = "") -> List[str]:
+        """Remove a ring or amulet. Slot letter optional if only one worn."""
+        if slot:
+            return self._act("R", slot)
+        return self._act("R")
+    
+    def take_off_armour(self, slot: str) -> List[str]:
+        """Take off worn armour by slot letter."""
+        return self._act("T", slot)
+    
+    def examine(self, slot: str) -> List[str]:
+        """Examine/describe an inventory item by slot letter."""
+        # In DCSS, 'i' opens inventory, then selecting a slot shows description
+        return self._act("i", slot)
+
     # --- Overlay / Stats ---
 
     def _load_persistent_stats(self):
