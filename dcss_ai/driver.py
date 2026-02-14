@@ -375,6 +375,9 @@ class DCSSDriver:
 
                 # Brief pause between games
                 if self.running:
+                    if self.args.single:
+                        self.logger.info("Single game mode, exiting")
+                        break
                     self.logger.info("Starting next game in 5 seconds...")
                     await asyncio.sleep(5)
 
@@ -404,6 +407,8 @@ async def main():
                         help="DCSS server password")
     parser.add_argument("--model", default="claude-sonnet-4",
                         help="Copilot model to use")
+    parser.add_argument("--single", action="store_true",
+                        help="Play one game then exit")
     args = parser.parse_args()
 
     driver = DCSSDriver(args)
