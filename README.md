@@ -30,7 +30,6 @@ driver.py
 **Key design choices:**
 - **One session = one game.** Fresh context each run, but `learnings.md` carries wisdom between games.
 - **Tools, not code.** The AI calls discrete game actions — no REPL, no code generation.
-- **Unlimited tokens.** Enterprise Copilot license, so the full system prompt + learnings go in every session. No optimization needed.
 - **Stream-aware.** The AI calls `update_overlay()` with a brief thought after every action, so Twitch viewers see its reasoning.
 
 ## Setup
