@@ -1,0 +1,3 @@
+dcss-api>=0.4.0
+mcp>=1.0.0
+websockets>=12.0

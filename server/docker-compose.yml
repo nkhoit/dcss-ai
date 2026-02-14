@@ -1,0 +1,12 @@
+services:
+  dcss:
+    image: frozenfoxx/crawl:latest
+    container_name: dcss-webtiles
+    ports:
+      - "8080:8080"
+    volumes:
+      - dcss-data:/data
+    restart: unless-stopped
+
+volumes:
+  dcss-data:
