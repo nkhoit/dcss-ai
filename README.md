@@ -28,43 +28,121 @@ OpenClaw Session
 
 The AI's memory survives context compaction through two files:
 - **`game_state.md`** — current game lifeboat (character, floor, objective, threats). Overwritten regularly.
-- **`learnings.md`** — permanent knowledge base. Append-only. Every death becomes a lesson that improves future runs.
+- **`learnings.md`** — permanent knowledge base. Append-only with periodic synthesis. Every death becomes a lesson that improves future runs.
 
-## Setup
+## Setup (from scratch)
 
-### 1. DCSS Server (Docker)
+### 1. Install Docker
 
+You need Docker to run the DCSS webtiles game server.
+
+**Linux (Ubuntu/Debian):**
 ```bash
-cd server
-docker compose up -d
+sudo apt update
+sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker $USER
+# Log out and back in, or use: newgrp docker
 ```
 
-This starts a DCSS webtiles server on `localhost:8080`.
+**Windows (WSL2):**
+- Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Windows
+- In Docker Desktop: Settings → General → check "Use WSL 2 based engine"
+- In Docker Desktop: Settings → Resources → WSL Integration → enable your distro
+- Docker commands will then work inside your WSL shell
 
-### 2. Python Environment
+**Verify Docker works:**
+```bash
+docker ps
+```
+
+If you get a permission error, you may need `sg docker -c "docker ps"` or log out/in for the group change to take effect. If `sg docker -c "..."` is needed, use it for all Docker commands below.
+
+### 2. Install Python Dependencies
+
+You need Python 3.10+ with venv support.
 
 ```bash
-cd ~/code/dcss-ai
+# Install venv support (Ubuntu/Debian — often missing by default)
+sudo apt install -y python3-venv
+
+# If your system uses python3.12 specifically:
+sudo apt install -y python3.12-venv
+```
+
+### 3. Clone and Set Up the Project
+
+```bash
+# Clone
+cd ~/code  # or wherever you keep projects
+git clone https://github.com/nkhoit/dcss-ai.git
+cd dcss-ai
+
+# Create virtual environment and install dependencies
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. OpenClaw Skill
+### 4. Start the DCSS Server
 
-Register the skill in your OpenClaw workspace so the agent loads `SKILL.md` when playing:
+```bash
+cd ~/code/dcss-ai/server
+docker compose up -d
 
+# Verify it's running
+docker ps  # should show dcss-webtiles on port 8080
+
+# You can also open http://localhost:8080 in a browser to see the webtiles UI
 ```
-skills/dcss-ai/SKILL.md → ~/code/dcss-ai/skill/SKILL.md
+
+The server saves game data in a Docker volume (`dcss-data`), so saves persist across restarts.
+
+```bash
+# Stop the server (saves are preserved)
+docker compose down
+
+# Destroy everything including saves (fresh start)
+docker compose down -v
 ```
+
+### 5. Register as OpenClaw Skill
+
+Symlink the skill directory into your OpenClaw workspace so the agent discovers it:
+
+```bash
+ln -s ~/code/dcss-ai/skill ~/.openclaw/workspace-main/skills/dcss-ai
+```
+
+After this, OpenClaw will show `dcss-ai` in its available skills and load `SKILL.md` when asked to play DCSS.
+
+### 6. Verify Everything Works
+
+```bash
+cd ~/code/dcss-ai
+source .venv/bin/activate
+python3 -c "
+from dcss_ai.game import DCSSGame, Direction
+dcss = DCSSGame()
+dcss.connect('ws://localhost:8080/socket', 'testbot', 'testbot123')
+print('Connected! Game IDs:', dcss._game_ids)
+state = dcss.start_game(species_key='b', background_key='f', weapon_key='b')
+print(state[:300])
+dcss.quit_game()
+dcss.disconnect()
+print('All good!')
+"
+```
+
+If this prints game state and "All good!", you're ready to play.
 
 ## Playing
 
-The AI connects via a long-running Python REPL:
+Tell your OpenClaw agent to "play DCSS" — it will load the skill and start a game session. Or manually:
+
+### Start the REPL
 
 ```bash
-source .venv/bin/activate
-python3 -i -c "
+cd ~/code/dcss-ai && source .venv/bin/activate && python3 -i -c "
 from dcss_ai.game import DCSSGame, Direction
 dcss = DCSSGame()
 dcss.connect('ws://localhost:8080/socket', 'kurobot', 'kurobot123')
@@ -72,27 +150,27 @@ print('Connected. Game IDs:', dcss._game_ids)
 "
 ```
 
-Then plays by writing Python:
+### Start a Game
 
 ```python
-# Start a Minotaur Berserker
+# Minotaur Berserker — recommended starting combo
 dcss.start_game(species_key='b', background_key='f', weapon_key='b')
-
-# Explore
-dcss.auto_explore()
-
-# Check state
-print(dcss.get_state_text())
-
-# Fight
-dcss.auto_fight()
-
-# Heal up
-if dcss.hp < dcss.max_hp:
-    dcss.rest()
 ```
 
-If the REPL dies, just reconnect — the DCSS server saves the game automatically.
+### Play
+
+```python
+dcss.auto_explore()           # Explore the floor
+dcss.auto_fight()             # Fight nearest enemy
+dcss.rest()                   # Rest until healed
+print(dcss.get_state_text())  # See everything
+print(dcss.get_map())         # See the map
+dcss.go_downstairs()          # Descend
+```
+
+### Reconnect After Interruption
+
+The DCSS server saves your game automatically. If the REPL dies, just start a new one and connect — your game loads from the save.
 
 ## Game API
 
@@ -123,6 +201,7 @@ dcss.rest()                # Rest until healed
 dcss.pickup()              # Pick up items
 dcss.go_downstairs()       # Descend
 dcss.wield("a")            # Equip weapon by slot
+dcss.wear("b")             # Wear armour by slot
 dcss.quaff("a")            # Drink potion
 dcss.read_scroll("a")      # Read scroll
 dcss.cast_spell("a", "n")  # Cast spell + direction
@@ -136,8 +215,8 @@ dcss.send_keys("abc")      # Raw keystrokes (escape hatch)
 dcss-ai/
 ├── dcss_ai/
 │   ├── game.py          # DCSSGame — high-level API over dcss-api
-│   ├── sandbox.py       # Restricted Python execution (unused in skill mode)
-│   ├── server.py        # MCP server (unused, kept for future use)
+│   ├── sandbox.py       # Restricted Python execution environment
+│   ├── server.py        # MCP server (for future use)
 │   └── main.py          # Entry point
 ├── skill/
 │   ├── SKILL.md         # Strategy guide + API reference for the AI
