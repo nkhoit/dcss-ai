@@ -113,8 +113,14 @@ class DCSSGame:
         self._is_dead = False
         self._messages.clear()
         
-        # Warmup — send a wait to populate map and get input_mode
-        self._act(".")
+        # Drain ALL late startup messages — keep reading until no more arrive
+        # The server sends multiple input_mode=1 during startup (welcome, "Press ?", etc.)
+        for _ in range(5):
+            msgs = self._ws.recv_messages(timeout=1.0)
+            for msg in msgs:
+                self._process_msg(msg)
+            if not msgs:
+                break
         
         return self.get_state_text()
     
@@ -422,15 +428,16 @@ class DCSSGame:
     # --- Internals ---
     
     def _act(self, *keys: str, timeout: float = 30.0) -> List[str]:
-        """Send keys, wait for input_mode, return new messages.
-        
-        Handles More prompts and death automatically.
-        Timeout prevents hangs.
-        """
+        """Send keys, wait for input_mode, return new messages."""
         if not self._ws or not self._in_game:
             return ["Not in game"]
         
         msg_start = len(self._messages)
+        
+        # Drain any leftover messages before sending keys
+        leftover = self._ws.recv_messages(timeout=0.1)
+        for msg in leftover:
+            self._process_msg(msg)
         
         for key in keys:
             self._ws.send_key(key)
@@ -450,27 +457,22 @@ class DCSSGame:
                     mode = msg.get("mode")
                     if mode == 1:
                         got_input = True
-                        break
+                        # Don't break — process remaining msgs in this batch
                     elif mode == 5:
-                        # More prompt — press space
                         self._ws.send_key(" ")
                     elif mode == 7:
-                        # Died
                         self._is_dead = True
                         self._in_game = False
-                        break
                 elif mt == "close":
                     self._is_dead = True
                     self._in_game = False
-                    break
-            
-            if got_input or self._is_dead:
-                break
         
         # Drain any remaining messages
         leftover = self._ws.recv_messages(timeout=0.1)
         for msg in leftover:
             self._process_msg(msg)
+        
+        return self._messages[msg_start:]
         
         return self._messages[msg_start:]
     
