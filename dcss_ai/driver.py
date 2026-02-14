@@ -21,289 +21,392 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# TODO: Verify exact import path when GitHub Copilot SDK is available
-# from copilot import CopilotClient
+from copilot import CopilotClient
+from copilot.tools import define_tool
+from copilot.generated.session_events import SessionEventType
+from pydantic import BaseModel, Field
+
 from dcss_ai.game import DCSSGame
+
+
+# --- Tool parameter models ---
+
+class EmptyParams(BaseModel):
+    pass
+
+class DirectionParams(BaseModel):
+    direction: str = Field(description="Direction: n/s/e/w/ne/nw/se/sw")
+
+class SlotParams(BaseModel):
+    key: str = Field(description="Inventory slot letter (a-z)")
+
+class SpellParams(BaseModel):
+    key: str = Field(description="Spell slot letter")
+    direction: str = Field(default="", description="Direction to cast: n/s/e/w/ne/nw/se/sw (optional)")
+
+class SendKeysParams(BaseModel):
+    keys: str = Field(description="Raw key string to send")
+
+class OverlayParams(BaseModel):
+    thought: str = Field(default="", description="Brief one-liner about what you're thinking (shown to stream viewers)")
+
+class DeathParams(BaseModel):
+    cause: str = Field(default="", description="Brief cause of death")
+
+class StartGameParams(BaseModel):
+    species_key: str = Field(default="b", description="Species key (b=Minotaur)")
+    background_key: str = Field(default="f", description="Background key (f=Berserker)")
+    weapon_key: str = Field(default="b", description="Weapon key")
+
+class MapParams(BaseModel):
+    radius: int = Field(default=7, description="Map view radius")
+
+class MessagesParams(BaseModel):
+    n: int = Field(default=10, description="Number of recent messages to return")
+
+
+def build_dcss_tools(dcss: DCSSGame) -> list:
+    """Build all DCSS tool definitions for the Copilot SDK."""
+
+    # --- State queries (free, no turn cost) ---
+
+    @define_tool(description="Get full game state: stats, messages, inventory, enemies, map. Use this to orient yourself.")
+    def get_state_text(params: EmptyParams) -> str:
+        return dcss.get_state_text()
+
+    @define_tool(description="Get ASCII map centered on player (@). Radius controls view size.")
+    def get_map(params: MapParams) -> str:
+        return dcss.get_map(radius=params.radius)
+
+    @define_tool(description="Get inventory as list of items with slot letters and names.")
+    def get_inventory(params: EmptyParams) -> str:
+        return json.dumps(dcss.get_inventory(), indent=2)
+
+    @define_tool(description="Get nearby visible enemies sorted by distance, with direction and threat level.")
+    def get_nearby_enemies(params: EmptyParams) -> str:
+        return json.dumps(dcss.get_nearby_enemies(), indent=2)
+
+    @define_tool(description="Get one-line stats summary: HP, MP, AC, EV, XL, place, turn.")
+    def get_stats(params: EmptyParams) -> str:
+        return dcss.get_stats()
+
+    @define_tool(description="Get last N game messages. Messages reveal what's happening in combat.")
+    def get_messages(params: MessagesParams) -> str:
+        return "\n".join(dcss.get_messages(n=params.n))
+
+    # --- Movement & exploration ---
+
+    @define_tool(description="Move one step in a direction. Moving into an enemy = melee attack.")
+    def move(params: DirectionParams) -> str:
+        msgs = dcss.move(params.direction)
+        return "\n".join(msgs) if msgs else "Moved."
+
+    @define_tool(description="Auto-explore the current floor. Stops on enemies, items, or fully explored.")
+    def auto_explore(params: EmptyParams) -> str:
+        msgs = dcss.auto_explore()
+        return "\n".join(msgs) if msgs else "Exploring..."
+
+    @define_tool(description="Auto-fight nearest enemy (Tab). Blocked at low HP as Berserker — use attack() instead.")
+    def auto_fight(params: EmptyParams) -> str:
+        msgs = dcss.auto_fight()
+        return "\n".join(msgs) if msgs else "Fighting..."
+
+    @define_tool(description="Rest until healed (5). Won't work with enemies nearby.")
+    def rest(params: EmptyParams) -> str:
+        msgs = dcss.rest()
+        return "\n".join(msgs) if msgs else "Resting..."
+
+    @define_tool(description="Wait one turn in place.")
+    def wait_turn(params: EmptyParams) -> str:
+        msgs = dcss.wait_turn()
+        return "\n".join(msgs) if msgs else "Waited."
+
+    @define_tool(description="Go upstairs (<).")
+    def go_upstairs(params: EmptyParams) -> str:
+        msgs = dcss.go_upstairs()
+        return "\n".join(msgs) if msgs else "Went upstairs."
+
+    @define_tool(description="Go downstairs (>).")
+    def go_downstairs(params: EmptyParams) -> str:
+        msgs = dcss.go_downstairs()
+        return "\n".join(msgs) if msgs else "Went downstairs."
+
+    # --- Items ---
+
+    @define_tool(description="Pick up items on the ground.")
+    def pickup(params: EmptyParams) -> str:
+        msgs = dcss.pickup()
+        return "\n".join(msgs) if msgs else "Picked up."
+
+    @define_tool(description="Wield a weapon by inventory slot letter.")
+    def wield(params: SlotParams) -> str:
+        msgs = dcss.wield(params.key)
+        return "\n".join(msgs) if msgs else "Wielded."
+
+    @define_tool(description="Wear armour by inventory slot letter.")
+    def wear(params: SlotParams) -> str:
+        msgs = dcss.wear(params.key)
+        return "\n".join(msgs) if msgs else "Wearing."
+
+    @define_tool(description="Drink a potion by inventory slot letter.")
+    def quaff(params: SlotParams) -> str:
+        msgs = dcss.quaff(params.key)
+        return "\n".join(msgs) if msgs else "Quaffed."
+
+    @define_tool(description="Read a scroll by inventory slot letter.")
+    def read_scroll(params: SlotParams) -> str:
+        msgs = dcss.read_scroll(params.key)
+        return "\n".join(msgs) if msgs else "Read scroll."
+
+    @define_tool(description="Drop an item by inventory slot letter.")
+    def drop(params: SlotParams) -> str:
+        msgs = dcss.drop(params.key)
+        return "\n".join(msgs) if msgs else "Dropped."
+
+    # --- Combat & abilities ---
+
+    @define_tool(description="Melee attack in a direction. Use when auto_fight is blocked at low HP.")
+    def attack(params: DirectionParams) -> str:
+        msgs = dcss.attack(params.direction)
+        return "\n".join(msgs) if msgs else "Attacked."
+
+    @define_tool(description="Use a god/species ability by key. a=Berserk, b=Trog's Hand, c=Brothers in Arms.")
+    def use_ability(params: SlotParams) -> str:
+        msgs = dcss.use_ability(params.key)
+        return "\n".join(msgs) if msgs else "Used ability."
+
+    @define_tool(description="Cast a spell by key, optionally in a direction.")
+    def cast_spell(params: SpellParams) -> str:
+        msgs = dcss.cast_spell(params.key, params.direction)
+        return "\n".join(msgs) if msgs else "Cast spell."
+
+    @define_tool(description="Pray at an altar.")
+    def pray(params: EmptyParams) -> str:
+        msgs = dcss.pray()
+        return "\n".join(msgs) if msgs else "Prayed."
+
+    # --- Interface ---
+
+    @define_tool(description="Confirm a prompt (Y).")
+    def confirm(params: EmptyParams) -> str:
+        msgs = dcss.confirm()
+        return "\n".join(msgs) if msgs else "Confirmed."
+
+    @define_tool(description="Deny a prompt (N).")
+    def deny(params: EmptyParams) -> str:
+        msgs = dcss.deny()
+        return "\n".join(msgs) if msgs else "Denied."
+
+    @define_tool(description="Press Escape to cancel.")
+    def escape(params: EmptyParams) -> str:
+        msgs = dcss.escape()
+        return "\n".join(msgs) if msgs else "Escaped."
+
+    @define_tool(description="Send raw keystrokes. Escape hatch for anything not covered by other tools.")
+    def send_keys(params: SendKeysParams) -> str:
+        msgs = dcss.send_keys(params.keys)
+        return "\n".join(msgs) if msgs else "Keys sent."
+
+    # --- Overlay & stats ---
+
+    @define_tool(description="Update the stream overlay with current stats and your thought. Call after every action.")
+    def update_overlay(params: OverlayParams) -> str:
+        dcss.update_overlay(params.thought)
+        return "Overlay updated."
+
+    @define_tool(description="Start a new game attempt. Call before start_game. Increments attempt counter on overlay.")
+    def new_attempt(params: EmptyParams) -> str:
+        dcss.new_attempt()
+        return f"Attempt #{dcss._attempt} started."
+
+    @define_tool(description="Record a death. Call when you die. Increments death counter.")
+    def record_death(params: DeathParams) -> str:
+        dcss.record_death(params.cause)
+        return f"Death #{dcss._deaths} recorded."
+
+    @define_tool(description="Record a win. Call when you escape with the Orb.")
+    def record_win(params: EmptyParams) -> str:
+        dcss.record_win()
+        return f"Win #{dcss._wins} recorded!"
+
+    # --- Game lifecycle ---
+
+    @define_tool(description="Start a new DCSS game. Default: Minotaur Berserker (species=b, bg=f, weapon=b).")
+    def start_game(params: StartGameParams) -> str:
+        return dcss.start_game(params.species_key, params.background_key, params.weapon_key)
+
+    return [
+        get_state_text, get_map, get_inventory, get_nearby_enemies,
+        get_stats, get_messages,
+        move, auto_explore, auto_fight, rest, wait_turn,
+        go_upstairs, go_downstairs,
+        pickup, wield, wear, quaff, read_scroll, drop,
+        attack, use_ability, cast_spell, pray,
+        confirm, deny, escape, send_keys,
+        update_overlay, new_attempt, record_death, record_win,
+        start_game,
+    ]
 
 
 class DCSSDriver:
     """Main driver that manages Copilot sessions and DCSS games."""
-    
+
     def __init__(self, args):
         self.args = args
         self.running = True
-        self.client = None  # CopilotClient instance
+        self.client: Optional[CopilotClient] = None
         self.dcss = DCSSGame()
-        
-        # Setup logging
+
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[logging.StreamHandler(sys.stdout)]
         )
         self.logger = logging.getLogger(__name__)
-        
-        # Setup signal handlers
+
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
-    
+
     def _signal_handler(self, signum, frame):
-        """Graceful shutdown on SIGINT/SIGTERM."""
         self.logger.info(f"Received signal {signum}, shutting down gracefully...")
         self.running = False
-        if self.client:
-            # TODO: Implement proper client shutdown when SDK is available
-            pass
-    
-    async def connect_to_dcss(self):
+
+    async def connect_to_dcss(self) -> bool:
         """Connect to DCSS server."""
         try:
             self.logger.info(f"Connecting to DCSS server at {self.args.server_url}")
-            success = self.dcss.connect(self.args.server_url, self.args.username, self.args.password)
-            if success:
-                self.logger.info("Successfully connected to DCSS server")
-                return True
-            else:
-                self.logger.error("Failed to connect to DCSS server")
-                return False
+            self.dcss.connect(self.args.server_url, self.args.username, self.args.password)
+            self.logger.info("Connected to DCSS server")
+            return True
         except Exception as e:
             self.logger.error(f"DCSS connection error: {e}")
             return False
-    
+
     def load_system_prompt(self) -> str:
         """Load system prompt from file and append learnings."""
+        prompt_path = Path(__file__).parent / "system_prompt.md"
+        with open(prompt_path, 'r') as f:
+            system_prompt = f.read()
+
+        learnings_path = Path(__file__).parent.parent / "skill" / "learnings.md"
+        if learnings_path.exists():
+            with open(learnings_path, 'r') as f:
+                learnings = f.read()
+            system_prompt += f"\n\n---\n\n## Your Accumulated Learnings\n\n{learnings}"
+
+        return system_prompt
+
+    async def run_game_session(self) -> None:
+        """Run one complete game as a single Copilot session."""
+        system_prompt = self.load_system_prompt()
+        tools = build_dcss_tools(self.dcss)
+
+        session = await self.client.create_session({
+            "model": self.args.model,
+            "system_message": system_prompt,
+            "tools": tools,
+            "streaming": True,
+            "available_tools": [],  # disable built-in tools (filesystem, git, etc)
+            "infinite_sessions": {
+                "enabled": True,  # let the SDK handle context management
+            },
+        })
+
+        # Log streaming output
+        def handle_event(event):
+            if event.type == SessionEventType.ASSISTANT_MESSAGE_DELTA:
+                sys.stdout.write(event.data.delta_content)
+                sys.stdout.flush()
+            elif event.type == SessionEventType.ASSISTANT_MESSAGE:
+                sys.stdout.write("\n")
+                sys.stdout.flush()
+
+        session.on(handle_event)
+
         try:
-            prompt_path = Path(__file__).parent / "system_prompt.md"
-            with open(prompt_path, 'r') as f:
-                system_prompt = f.read()
-            
-            # Append learnings
-            learnings_path = Path(__file__).parent.parent / "skill" / "learnings.md"
-            if learnings_path.exists():
-                with open(learnings_path, 'r') as f:
-                    learnings = f.read()
-                
-                system_prompt += f"\n\n## Previous Learnings\n\n{learnings}"
-            else:
-                self.logger.warning(f"Learnings file not found at {learnings_path}")
-            
-            return system_prompt
-            
-        except Exception as e:
-            self.logger.error(f"Failed to load system prompt: {e}")
-            raise
-    
-    async def create_copilot_session(self, system_prompt: str):
-        """Create a new Copilot session with the given system prompt."""
-        try:
-            # TODO: Implement actual Copilot SDK integration when available
-            # For now, this is a placeholder structure
-            """
-            session = await self.client.create_session({
-                "model": self.args.model,
-                "system_prompt": system_prompt
+            # Kick off the game
+            self.logger.info(f"Starting game session (attempt #{self.dcss._attempt + 1})")
+            await session.send_and_wait({
+                "prompt": (
+                    "Start a new DCSS game. Call new_attempt() first, then start_game() "
+                    "with Minotaur Berserker. Play the game — explore, fight, survive. "
+                    "Call update_overlay() with a brief thought after every action. "
+                    "When you die, call record_death() with the cause, reflect on what "
+                    "went wrong, then say GAME_OVER. If you win, call record_win() and say GAME_OVER."
+                )
             })
-            
-            # Register DCSS tools - TODO: Verify exact API pattern
-            dcss_tools = self._get_dcss_tools()
-            for tool in dcss_tools:
-                await session.register_tool(tool)
-            
-            return session
-            """
-            self.logger.warning("Copilot SDK integration not implemented - placeholder session")
-            return None
-            
-        except Exception as e:
-            self.logger.error(f"Failed to create Copilot session: {e}")
-            raise
-    
-    def _get_dcss_tools(self) -> list:
-        """Return list of DCSS tool definitions for Copilot SDK."""
-        # TODO: Define proper tool schemas for the Copilot SDK
-        # This should match whatever format the SDK expects
-        tools = [
-            # Connection & game management
-            {"name": "connect", "handler": self.dcss.connect},
-            {"name": "start_game", "handler": self.dcss.start_game},
-            
-            # State queries (free actions)
-            {"name": "get_state_text", "handler": self.dcss.get_state_text},
-            {"name": "get_map", "handler": self.dcss.get_map},
-            {"name": "get_inventory", "handler": self.dcss.get_inventory},
-            {"name": "get_nearby_enemies", "handler": self.dcss.get_nearby_enemies},
-            {"name": "get_stats", "handler": self.dcss.get_stats},
-            {"name": "get_messages", "handler": self.dcss.get_messages},
-            
-            # Movement & exploration
-            {"name": "move", "handler": self.dcss.move},
-            {"name": "auto_explore", "handler": self.dcss.auto_explore},
-            {"name": "auto_fight", "handler": self.dcss.auto_fight},
-            {"name": "rest", "handler": self.dcss.rest},
-            {"name": "wait_turn", "handler": self.dcss.wait_turn},
-            {"name": "go_upstairs", "handler": self.dcss.go_upstairs},
-            {"name": "go_downstairs", "handler": self.dcss.go_downstairs},
-            
-            # Items
-            {"name": "pickup", "handler": self.dcss.pickup},
-            {"name": "wield", "handler": self.dcss.wield},
-            {"name": "wear", "handler": self.dcss.wear},
-            {"name": "quaff", "handler": self.dcss.quaff},
-            {"name": "read_scroll", "handler": self.dcss.read_scroll},
-            
-            # Combat & abilities
-            {"name": "use_ability", "handler": self.dcss.use_ability},
-            {"name": "cast_spell", "handler": self.dcss.cast_spell},
-            {"name": "attack", "handler": self.dcss.attack},
-            {"name": "pray", "handler": self.dcss.pray},
-            
-            # Interface
-            {"name": "confirm", "handler": self.dcss.confirm},
-            {"name": "deny", "handler": self.dcss.deny},
-            {"name": "escape", "handler": self.dcss.escape},
-            {"name": "send_keys", "handler": self.dcss.send_keys},
-            
-            # Overlay & stats
-            {"name": "update_overlay", "handler": self.dcss.update_overlay},
-            {"name": "new_attempt", "handler": self.dcss.new_attempt},
-            {"name": "record_death", "handler": self.dcss.record_death},
-            {"name": "record_win", "handler": self.dcss.record_win},
-        ]
-        
-        return tools
-    
-    async def run_game_session(self, session):
-        """Run one complete game session until death or win."""
-        try:
-            # Initialize new game
-            self.dcss.new_attempt()
-            
-            # Start the game (MiBe by default)
-            initial_state = self.dcss.start_game(species_key='b', background_key='f', weapon_key='b')
-            
-            # TODO: Send initial message to Copilot session when SDK is available
-            """
-            response = await session.send_and_wait({
-                "prompt": "Start playing DCSS. Call new_attempt() first, then begin your exploration. "
-                         "Remember to call update_overlay() with brief thoughts after each action. "
-                         f"Initial game state:\n{initial_state}"
-            })
-            """
-            
-            self.logger.info("Game started, waiting for AI to play...")
-            
-            # For now, just simulate waiting until game over
-            # TODO: Replace with actual session interaction
-            turn = 0
-            while self.running and not self.dcss.is_dead:
-                await asyncio.sleep(1)  # Placeholder - let the AI act through session
-                turn += 1
-                
-                # Check game state periodically
-                if turn % 60 == 0:  # Every minute
-                    self.logger.info(f"Game still running... Turn {self.dcss.turn}, HP: {self.dcss.hp}/{self.dcss.max_hp}")
-                
-                # Timeout protection - no real game should last more than 10 hours
-                if turn > 36000:  # 10 hours at 1 second per turn
-                    self.logger.warning("Game timeout reached, ending session")
-                    break
-            
-            # Game ended
-            if self.dcss.is_dead:
-                self.logger.info("Game ended - character died")
-                # The AI should have already called record_death() but ensure it's recorded
-                if hasattr(self, '_death_recorded') and not self._death_recorded:
-                    self.dcss.record_death("timeout or unrecorded death")
-            else:
-                self.logger.info("Game ended - other reason")
-            
+
+            # The agent will use tools in a loop until the game ends.
+            # The session stays alive as long as the agent is making tool calls.
+            # When it says GAME_OVER or stops calling tools, send_and_wait returns.
+
+            self.logger.info(f"Game session ended. Deaths: {self.dcss._deaths}, Wins: {self.dcss._wins}")
+
         except Exception as e:
             self.logger.error(f"Error during game session: {e}")
-            raise
         finally:
-            # Ensure session cleanup
-            if session:
-                # TODO: Implement proper session cleanup when SDK is available
-                pass
-    
+            # Session cleanup — create a fresh one for next game
+            pass
+
     async def run_forever(self):
         """Main loop - runs games forever until interrupted."""
         self.logger.info("Starting DCSS AI Driver")
-        
-        # TODO: Initialize Copilot client when SDK is available
-        """
+
+        # Initialize Copilot client
         self.client = CopilotClient()
         await self.client.start()
-        """
-        
+        self.logger.info("Copilot SDK connected")
+
         # Connect to DCSS server
         if not await self.connect_to_dcss():
             self.logger.error("Failed to connect to DCSS, exiting")
+            await self.client.stop()
             return 1
-        
+
         game_count = 0
-        
+
         while self.running:
             try:
                 game_count += 1
-                self.logger.info(f"Starting game #{game_count}")
-                
-                # Load fresh system prompt + learnings
-                system_prompt = self.load_system_prompt()
-                
-                # Create new Copilot session for this game
-                session = await self.create_copilot_session(system_prompt)
-                
-                if session:
-                    # Run the game
-                    await self.run_game_session(session)
-                else:
-                    # Fallback for when Copilot SDK is not available
-                    self.logger.warning("Running in simulation mode without Copilot SDK")
-                    await asyncio.sleep(10)  # Simulate game time
-                
+                self.logger.info(f"=== Game #{game_count} ===")
+
+                await self.run_game_session()
+
                 # Brief pause between games
                 if self.running:
-                    await asyncio.sleep(2)
-                    
+                    self.logger.info("Starting next game in 5 seconds...")
+                    await asyncio.sleep(5)
+
             except Exception as e:
                 self.logger.error(f"Error in game loop: {e}")
                 if self.running:
                     self.logger.info("Retrying in 30 seconds...")
                     await asyncio.sleep(30)
-            
-            # WebSocket connection recovery
+
+            # Reconnect if needed
             if self.running and not self.dcss._connected:
-                self.logger.warning("DCSS connection lost, attempting to reconnect...")
+                self.logger.warning("DCSS connection lost, reconnecting...")
                 await self.connect_to_dcss()
-        
+
         self.logger.info("Shutting down driver")
+        await self.client.stop()
         return 0
 
 
 async def main():
-    """Main entry point."""
     parser = argparse.ArgumentParser(description="DCSS AI Driver using GitHub Copilot SDK")
     parser.add_argument("--server-url", default="ws://localhost:8080/socket",
-                       help="DCSS webtiles server WebSocket URL")
+                        help="DCSS webtiles server WebSocket URL")
     parser.add_argument("--username", default="kurobot",
-                       help="DCSS server username")
+                        help="DCSS server username")
     parser.add_argument("--password", default="kurobot123",
-                       help="DCSS server password")
+                        help="DCSS server password")
     parser.add_argument("--model", default="claude-sonnet-4",
-                       help="Copilot model to use")
-    
+                        help="Copilot model to use")
     args = parser.parse_args()
-    
+
     driver = DCSSDriver(args)
-    try:
-        return await driver.run_forever()
-    except KeyboardInterrupt:
-        print("\nInterrupted by user")
-        return 0
-    except Exception as e:
-        print(f"Fatal error: {e}")
-        return 1
+    return await driver.run_forever()
 
 
 if __name__ == "__main__":
