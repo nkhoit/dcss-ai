@@ -1,3 +1,8 @@
+---
+name: dcss-ai
+description: Play Dungeon Crawl Stone Soup (DCSS) via a Python game API. Use when asked to play DCSS, start a DCSS game, continue a DCSS run, or interact with the DCSS roguelike. Requires Docker for the DCSS webtiles server and a Python venv at ~/code/dcss-ai/.venv.
+---
+
 # DCSS AI — Skill Reference
 
 You are playing Dungeon Crawl Stone Soup (DCSS) via Python commands in a long-running REPL. Your goal is to retrieve the Orb of Zot from the deepest level of the dungeon and escape alive.
