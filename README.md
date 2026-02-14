@@ -169,7 +169,5 @@ dcss-ai/
 ## Credits
 
 - [DCSS](https://github.com/crawl/crawl) — the game
-- [dcss-api](https://github.com/EricFecteau/dcss-api) by EricFecteau — WebSocket API layer
 - [GitHub Copilot SDK](https://github.com/github/copilot-sdk) — LLM agent framework
-- [OpenClaw](https://github.com/openclaw/openclaw) — mission control & monitoring
 - [frozenfoxx/crawl](https://hub.docker.com/r/frozenfoxx/crawl) — Docker image
