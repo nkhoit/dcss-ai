@@ -220,11 +220,17 @@ class DCSSGame:
         return "\n".join(lines)
     
     def get_nearby_enemies(self) -> List[Dict[str, Any]]:
-        """Get visible enemies sorted by distance."""
+        """Get visible enemies sorted by distance. Filters out plants/fungi."""
+        IGNORE = {'plant', 'withered plant', 'fungus', 'toadstool', 'bush', 
+                  'ballistomycete spore', 'briar patch', 'pillar of salt',
+                  'block of ice', 'spectral weapon'}
         px, py = self._position
         enemies = []
         for (mx, my), mon in self._monsters.items():
             if not mon:
+                continue
+            name = mon.get("name", "unknown").lower()
+            if name in IGNORE:
                 continue
             dx, dy = mx - px, my - py
             direction = ""
@@ -427,7 +433,7 @@ class DCSSGame:
 
     # --- Internals ---
     
-    def _act(self, *keys: str, timeout: float = 30.0) -> List[str]:
+    def _act(self, *keys: str, timeout: float = 5.0) -> List[str]:
         """Send keys, wait for input_mode, return new messages."""
         if not self._ws or not self._in_game:
             return ["Not in game"]
