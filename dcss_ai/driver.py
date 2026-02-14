@@ -44,9 +44,6 @@ class SpellParams(BaseModel):
     key: str = Field(description="Spell slot letter")
     direction: str = Field(default="", description="Direction to cast: n/s/e/w/ne/nw/se/sw (optional)")
 
-class SendKeysParams(BaseModel):
-    keys: str = Field(description="Raw key string to send")
-
 class OverlayParams(BaseModel):
     thought: str = Field(default="", description="Brief one-liner about what you're thinking (shown to stream viewers)")
 
@@ -205,11 +202,6 @@ def build_dcss_tools(dcss: DCSSGame) -> list:
         msgs = dcss.escape()
         return "\n".join(msgs) if msgs else "Escaped."
 
-    @define_tool(description="Send raw keystrokes. Escape hatch for anything not covered by other tools.")
-    def send_keys(params: SendKeysParams) -> str:
-        msgs = dcss.send_keys(params.keys)
-        return "\n".join(msgs) if msgs else "Keys sent."
-
     # --- Overlay & stats ---
 
     @define_tool(description="Update the stream overlay with current stats and your thought. Call after every action.")
@@ -266,7 +258,7 @@ def build_dcss_tools(dcss: DCSSGame) -> list:
         go_upstairs, go_downstairs,
         pickup, wield, wear, quaff, read_scroll, drop,
         attack, use_ability, cast_spell, pray,
-        confirm, deny, escape, send_keys,
+        confirm, deny, escape, 
         update_overlay, new_attempt, record_death, record_win,
         write_learning,
         start_game,
