@@ -133,8 +133,9 @@ dcss.gold, dcss.position, dcss.turn, dcss.is_dead
 dcss.get_messages(n=10)   # Last n game messages
 dcss.get_inventory()      # [{slot, name, quantity}, ...]
 dcss.get_map(radius=7)    # ASCII map centered on @ (you)
+dcss.get_nearby_enemies() # [{name, direction, distance, threat}, ...]
 dcss.get_stats()          # One-line stats summary
-dcss.get_state_text()     # Full dump: stats + messages + inventory + map
+dcss.get_state_text()     # Full dump: stats + messages + enemies + inventory + map
 ```
 
 ### Actions (consume game turns)
@@ -146,7 +147,8 @@ dcss.go_upstairs()        # <
 dcss.go_downstairs()      # >
 
 # Combat
-dcss.auto_fight()         # Tab — fight nearest
+dcss.auto_fight()         # Tab — fight nearest (blocked at low HP as Berserker)
+dcss.attack("n")          # Melee attack in direction (use when auto_fight is blocked)
 dcss.wait_turn()          # Wait one turn
 
 # Rest
@@ -203,6 +205,9 @@ Start with **Minotaur Berserker** (species='b', bg='f', weapon='b'). It's the mo
 4. **Don't berserk when surrounded** — post-berserk exhaustion = slow + weak.
 5. **Tab-fight** only trivial enemies (rats, bats, worms).
 6. **Read messages carefully** — they tell you what's hitting you and how hard.
+7. **"Too injured to fight recklessly!"** — Trog blocks `auto_fight()` at low HP. Use `dcss.attack(direction)` instead to manually swing, or retreat.
+8. **`rest()` requires no enemies in sight.** Kill or flee all enemies first, then rest. If rest does nothing, there's probably a monster nearby you haven't noticed.
+9. **Use `get_nearby_enemies()`** to check for enemies and their direction before deciding what to do.
 
 ### Resource Management
 - Rest after every fight if safe
