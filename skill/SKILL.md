@@ -106,6 +106,7 @@ print('Connected. Game IDs:', dcss._game_ids)
 
 ### Starting a New Game
 ```python
+dcss.new_attempt()  # increment attempt counter on overlay
 dcss.start_game(species_key='b', background_key='f', weapon_key='b')  # MiBe
 ```
 
@@ -137,6 +138,15 @@ dcss.get_nearby_enemies() # [{name, direction, distance, threat}, ...]
 dcss.get_stats()          # One-line stats summary
 dcss.get_state_text()     # Full dump: stats + messages + enemies + inventory + map
 ```
+
+### Stream Overlay (call frequently)
+```python
+dcss.update_overlay("Looking for stairs down...")  # Update overlay with current stats + thought
+dcss.new_attempt()       # Call when starting a new game
+dcss.record_death("killed by a hydra")  # Call on death
+dcss.record_win()        # Call on win
+```
+Call `dcss.update_overlay("your thought")` after every action with a brief one-liner about what you're doing/thinking. This shows up on the Twitch stream for viewers. Keep thoughts short and natural.
 
 ### Actions (consume game turns)
 ```python

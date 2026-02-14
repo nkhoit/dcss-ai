@@ -1,9 +1,12 @@
 """DCSS Game API wrapper for LLM-controlled gameplay."""
 import json
+import os
 import re
 import time
 from typing import Optional, List, Dict, Tuple, Any
 from dcss_ai.webtiles import WebTilesConnection
+
+OVERLAY_STATS_PATH = os.environ.get("DCSS_OVERLAY_STATS", os.path.expanduser("~/code/dcss-stream/stats.json"))
 
 
 class DCSSGame:
@@ -13,11 +16,18 @@ class DCSSGame:
     Properties are free (no turn cost). Actions consume turns.
     """
     
-    def __init__(self):
+    def __init__(self, stats_path: str = OVERLAY_STATS_PATH):
         self._ws: Optional[WebTilesConnection] = None
         self._connected = False
         self._in_game = False
         self._game_ids: List[str] = []
+        self._stats_path = stats_path
+        
+        # Persistent stats (loaded from overlay file)
+        self._attempt = 0
+        self._wins = 0
+        self._deaths = 0
+        self._load_persistent_stats()
         
         # Player stats
         self._hp = 0
@@ -356,6 +366,59 @@ class DCSSGame:
         """Raw key escape hatch."""
         return self._act(*list(keys))
     
+    # --- Overlay / Stats ---
+
+    def _load_persistent_stats(self):
+        """Load attempt/win/death counts from overlay stats file."""
+        try:
+            with open(self._stats_path) as f:
+                data = json.load(f)
+                self._attempt = data.get("attempt", 0)
+                self._wins = data.get("wins", 0)
+                self._deaths = data.get("deaths", 0)
+        except (FileNotFoundError, json.JSONDecodeError):
+            pass
+
+    def update_overlay(self, thought: str = ""):
+        """Write current game state + thought to the stream overlay stats file.
+        
+        Call this after significant events: each action, level changes, death, win.
+        The overlay HTML polls this file every 2 seconds.
+        """
+        species_bg = f"{self._place}" if self._place else "—"
+        data = {
+            "attempt": self._attempt,
+            "wins": self._wins,
+            "deaths": self._deaths,
+            "character": species_bg,
+            "xl": self._xl,
+            "place": f"{self._place}:{self._depth}" if self._place else "—",
+            "turn": self._turn,
+            "thought": thought,
+            "status": "Dead" if self._is_dead else "Playing",
+        }
+        try:
+            os.makedirs(os.path.dirname(self._stats_path), exist_ok=True)
+            with open(self._stats_path, "w") as f:
+                json.dump(data, f)
+        except OSError:
+            pass
+
+    def new_attempt(self):
+        """Call when starting a new game. Increments attempt counter."""
+        self._attempt += 1
+        self.update_overlay("Starting new game...")
+
+    def record_death(self, cause: str = ""):
+        """Call when the character dies. Increments death counter."""
+        self._deaths += 1
+        self.update_overlay(f"Died: {cause}" if cause else "Died.")
+
+    def record_win(self):
+        """Call when the character wins. Increments win counter."""
+        self._wins += 1
+        self.update_overlay("WON! 🎉")
+
     # --- Internals ---
     
     def _act(self, *keys: str, timeout: float = 30.0) -> List[str]:
