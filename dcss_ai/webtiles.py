@@ -7,6 +7,7 @@ import json
 import zlib
 import time
 import re
+import threading
 from typing import List, Dict, Any, Tuple, Optional
 from collections import deque
 import websockets.sync.client
@@ -34,6 +35,24 @@ class WebTilesConnection:
         self._ws = websockets.sync.client.connect(url)
         self._decompressor = zlib.decompressobj(-15)  # Raw deflate, stateful
         self._queue: deque = deque()
+        self._last_msg_time = time.time()
+        self._ping_stop = threading.Event()
+        self._ping_thread = threading.Thread(target=self._ping_loop, daemon=True)
+        self._ping_thread.start()
+    
+    def _ping_loop(self):
+        """Background thread that sends keepalive pings every 30s of inactivity."""
+        while not self._ping_stop.wait(10):
+            if time.time() - self._last_msg_time > 30:
+                try:
+                    self.ping()
+                except Exception:
+                    break
+
+    def ping(self) -> None:
+        """Send a keepalive ping to prevent server timeout."""
+        self._send({"msg": "pong"})
+        self._last_msg_time = time.time()
     
     def send_key(self, key: str) -> None:
         """Send a key. Supports key_dir_n, key_tab, key_esc, key_ctrl_X, or plain chars."""
@@ -52,6 +71,7 @@ class WebTilesConnection:
         if not self._ws:
             raise RuntimeError("Not connected")
         self._ws.send(json.dumps(data))
+        self._last_msg_time = time.time()
     
     def recv_messages(self, timeout: float = 0.1) -> List[dict]:
         """Receive and return all available messages, waiting up to timeout seconds.
@@ -221,6 +241,7 @@ class WebTilesConnection:
     
     def disconnect(self) -> None:
         """Close connection."""
+        self._ping_stop.set()
         if self._ws:
             try:
                 self._ws.close()
