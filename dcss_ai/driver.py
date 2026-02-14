@@ -335,7 +335,7 @@ class DCSSDriver:
                     "went wrong. If you win, call record_win() and reflect on what worked. "
                     "Either way, share your learnings then say GAME_OVER."
                 )
-            })
+            }, timeout=7200)  # 2 hour timeout — games can be long
 
             # The agent will use tools in a loop until the game ends.
             # The session stays alive as long as the agent is making tool calls.
