@@ -135,7 +135,82 @@ print('All good!')
 
 If this prints game state and "All good!", you're ready to play.
 
+## Architecture Overview
+
+This project supports two different approaches to DCSS AI gameplay:
+
+### 1. OpenClaw Skill (Manual Control)
+The traditional approach where an OpenClaw agent manually controls the game through a Python REPL:
+
+```
+OpenClaw Session
+  │
+  │  reads skill/SKILL.md (strategy + API reference)
+  │  reads skill/game_state.md (active game context)
+  │  reads skill/learnings.md (knowledge from past deaths)
+  │
+  ├─ exec: long-running Python REPL (holds WebSocket connection)
+  │   │
+  │   │  dcss.auto_explore()
+  │   │  dcss.auto_fight()
+  │   │  dcss.get_map()
+  │   │  ...
+  │   │
+  │   └─→ dcss-api (PyPI) ──WebSocket──→ DCSS Webtiles Server (Docker)
+  │
+  └─ writes: game_state.md (every 5-10 turns)
+             learnings.md (after every death)
+```
+
+### 2. Autonomous Driver (GitHub Copilot SDK)
+The new autonomous approach using `driver.py` and GitHub Copilot SDK:
+
+```
+driver.py (Python)
+  │
+  │  One Copilot session = one game
+  │  System prompt = system_prompt.md + learnings.md
+  │
+  ├─ GitHub Copilot SDK Session
+  │   │  Tools: all DCSSGame methods registered
+  │   │  Agent plays autonomously until death/win
+  │   │  Updates stream overlay: ~/code/dcss-stream/stats.json
+  │   │
+  │   └─→ dcss-api ──WebSocket──→ DCSS Webtiles Server (Docker)
+  │
+  ├─ On Death/Win: end session, write learnings
+  ├─ Create new session with fresh context
+  └─ Loop forever
+```
+
+**Key differences:**
+- **Game driver**: Uses Copilot SDK to drive gameplay autonomously
+- **One session per game**: Fresh context each game, but learnings persist
+- **Stream integration**: Updates `~/code/dcss-stream/stats.json` for overlay
+- **Mission control**: OpenClaw instance monitors but doesn't play
+
 ## Playing
+
+### Option 1: Autonomous Driver (Recommended)
+
+For continuous autonomous gameplay using GitHub Copilot SDK:
+
+```bash
+cd ~/code/dcss-ai
+source .venv/bin/activate
+python dcss_ai/driver.py --server-url ws://localhost:8080/socket --username kurobot --password kurobot123
+```
+
+The driver will:
+1. Connect to DCSS server
+2. Create Copilot sessions with fresh context each game
+3. Register all DCSS game methods as tools
+4. Let the AI play until death/win
+5. Update learnings and loop forever
+
+**Stream Integration**: If you have `~/code/dcss-stream/` set up, the driver will update `stats.json` for the stream overlay.
+
+### Option 2: Manual OpenClaw Skill
 
 Tell your OpenClaw agent to "play DCSS" — it will load the skill and start a game session. Or manually:
 
