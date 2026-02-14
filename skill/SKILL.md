@@ -1,23 +1,80 @@
 # DCSS AI — Skill Reference
 
-You are playing Dungeon Crawl Stone Soup (DCSS) via MCP tools. Your goal is to retrieve the Orb of Zot from the deepest level of the dungeon and escape alive.
+You are playing Dungeon Crawl Stone Soup (DCSS) via Python commands in a long-running REPL. Your goal is to retrieve the Orb of Zot from the deepest level of the dungeon and escape alive.
 
-## Tools
+## Memory System
 
-You have 3 tools:
+**DCSS is a long game. You will be compacted. Your context will be lost. Write things down.**
 
-### `dcss_start_game(species, background, weapon)`
-Start a new game. Returns initial state.
+### `game_state.md` — Active Game Lifeboat
+Update this file every 5-10 turns or after anything significant. Keep it under 30 lines.
 
-### `dcss_state()`
-Get current game state: stats, map, messages, inventory.
+Contents:
+- Character: species, background, god, XL, key resistances
+- Current objective: what you're doing right now
+- Floor status: which floors are cleared, where you are
+- Threats: known dangerous enemies nearby
+- Key inventory: weapon, armour, important consumables
+- Open decisions: "should I take stairs or clear rest of floor?"
 
-### `dcss_execute(code)`
-Execute Python code against the `dcss` game API. This is your primary tool — write Python to control the game.
+**After compaction or restart:** Read this file FIRST, then reconnect to the game and call `dcss.get_state_text()` to reorient.
+
+### `learnings.md` — Persistent Knowledge Base
+Append to this after every death or significant mistake. Never delete entries. Format:
+
+```
+## Death #N — [Character] — [Cause]
+- What happened
+- What I should have done
+- Rule to follow in future
+```
+
+Also record discoveries:
+```
+## Insight — [Topic]
+- What I learned
+```
+
+Examples of things to record:
+- "Hydras grow heads when hit with edged weapons — use clubs/maces or spells"
+- "Don't berserk when surrounded — you can't retreat while berserk-exhausted"
+- "Sigmund on D:2 at XL 2 = run. Come back at XL 5+"
+- "Always carry at least 2 teleport scrolls after D:5"
+
+**Before starting a new game:** Read this file. Apply everything you've learned.
+
+### File Locations
+All memory files go in the skill directory alongside this file:
+- `game_state.md` — current game (overwrite each update)
+- `learnings.md` — permanent (append only)
+
+---
+
+## Connection & Gameplay
+
+You play through a long-running Python REPL (`exec` with PTY). The REPL holds the WebSocket connection to the DCSS server.
+
+### Starting the REPL
+```bash
+cd ~/code/dcss-ai && source .venv/bin/activate && python3 -i -c "
+from dcss_ai.game import DCSSGame, Direction
+dcss = DCSSGame()
+dcss.connect('ws://localhost:8080/socket', 'kurobot', 'kurobot123')
+print('Connected. Game IDs:', dcss._game_ids)
+"
+```
+
+### Starting a New Game
+```python
+dcss.start_game(species_key='b', background_key='f', weapon_key='b')  # MiBe
+```
+
+### Reconnecting After Interruption
+The DCSS server saves your game. Start a new REPL, connect, and the game loads from the save automatically.
+
+---
 
 ## Game API Reference
-
-Available as `dcss` in execute_code:
 
 ### Properties (free, no turn cost)
 ```python
@@ -28,54 +85,51 @@ dcss.strength, dcss.intelligence, dcss.dexterity
 dcss.xl                   # Experience level
 dcss.place, dcss.depth    # Current branch and depth
 dcss.god                  # Worshipped god (or "")
-dcss.gold                 # Gold pieces
-dcss.position             # (x, y) tuple
-dcss.turn                 # Game turn number
-dcss.is_dead              # True if dead
+dcss.gold, dcss.position, dcss.turn, dcss.is_dead
 ```
 
 ### State Queries (free)
 ```python
-dcss.get_messages(n=10)   # Last n game messages (HTML stripped)
+dcss.get_messages(n=10)   # Last n game messages
 dcss.get_inventory()      # [{slot, name, quantity}, ...]
-dcss.get_map(radius=7)    # ASCII map centered on player (@)
-dcss.get_stats()          # Formatted stats string
-dcss.get_state_text()     # Full state dump (stats + messages + map + inventory)
+dcss.get_map(radius=7)    # ASCII map centered on @ (you)
+dcss.get_stats()          # One-line stats summary
+dcss.get_state_text()     # Full dump: stats + messages + inventory + map
 ```
 
 ### Actions (consume game turns)
 ```python
 # Movement
-dcss.move("n")            # Move: n/s/e/w/ne/nw/se/sw
-dcss.auto_explore()       # Auto-explore (o key)
-dcss.go_upstairs()        # Ascend stairs (<)
-dcss.go_downstairs()      # Descend stairs (>)
+dcss.move("n")            # n/s/e/w/ne/nw/se/sw
+dcss.auto_explore()       # Explore until interrupted
+dcss.go_upstairs()        # <
+dcss.go_downstairs()      # >
 
 # Combat
-dcss.auto_fight()         # Tab — fight nearest enemy
-dcss.wait_turn()          # Wait one turn (.)
+dcss.auto_fight()         # Tab — fight nearest
+dcss.wait_turn()          # Wait one turn
 
 # Rest
-dcss.rest()               # Long rest until healed (5 key)
+dcss.rest()               # Rest until healed
 
 # Items
-dcss.pickup()             # Pick up items (g)
-dcss.wield("a")           # Wield weapon by slot
-dcss.wear("b")            # Wear armour by slot
-dcss.quaff("a")           # Drink potion by slot
-dcss.read_scroll("a")     # Read scroll by slot
-dcss.drop("a")            # Drop item by slot
+dcss.pickup()             # Pick up items
+dcss.wield("a")           # Wield weapon by inventory slot
+dcss.wear("b")            # Wear armour
+dcss.quaff("a")           # Drink potion
+dcss.read_scroll("a")     # Read scroll
+dcss.drop("a")            # Drop item
 
-# Magic
-dcss.cast_spell("a", "n") # Cast spell with direction
-dcss.use_ability("a")     # Use god/species ability
+# Magic & Abilities
+dcss.cast_spell("a", "n") # Cast spell + direction
+dcss.use_ability("a")     # God/species ability
 
 # Other
-dcss.pray()               # Pray to god
-dcss.confirm()            # Send Y
-dcss.deny()               # Send N
-dcss.escape()             # Send Escape
-dcss.send_keys("abc")     # Raw keystrokes (escape hatch)
+dcss.pray()
+dcss.confirm()            # Y
+dcss.deny()               # N
+dcss.escape()             # Esc
+dcss.send_keys("abc")     # Raw keystrokes
 ```
 
 ### Direction Constants
@@ -84,89 +138,107 @@ Direction.N, Direction.S, Direction.E, Direction.W
 Direction.NE, Direction.NW, Direction.SE, Direction.SW
 ```
 
+---
+
 ## Strategy Guide
 
 ### Core Loop
-Your gameplay loop should be:
-1. **Explore** the current floor with `dcss.auto_explore()`
-2. **Fight** enemies when encountered (auto_fight for weak ones, tactical play for dangerous ones)
-3. **Manage resources** — rest when safe, use consumables wisely
-4. **Descend** when the floor is cleared
+1. `auto_explore()` the current floor
+2. Fight enemies — `auto_fight()` for weak ones, tactical play for threats
+3. `rest()` after fights when safe
+4. Pick up consumables and upgrades
+5. Descend when floor is cleared and you're healthy
+6. **Update `game_state.md` every 5-10 turns**
 
 ### Character Selection
-Strong starting combos for AI play:
-- **Minotaur Berserker** (species='b', bg='f', weapon='b') — simple melee, Trog provides rage + allies
-- **Gargoyle Fighter** (species='l', bg='a') — tanky, innate resistances
-- **Vine Stalker Enchanter** — stealth + hexes, good for careful play
+Start with **Minotaur Berserker** (species='b', bg='f', weapon='b'). It's the most forgiving:
+- High HP, strong melee, headbutt attacks
+- Trog provides Berserk (huge damage burst) and Brother in Arms (summon allies)
+- Simple gameplan: hit things, don't die
 
-Start with Minotaur Berserker. It's the most forgiving.
-
-### Combat Priorities
-1. **Run from dangerous enemies** when HP < 50% — `dcss.move()` away, use corridors
-2. **Use Berserk** (Trog ability 'a') for tough fights when HP is healthy
-3. **Tab-fight** (auto_fight) for trivial enemies
-4. **Never fight multiple enemies in open space** — retreat to corridors for 1v1
+### Combat Rules
+1. **HP < 50%: retreat.** Move to a corridor, rest, come back.
+2. **Never fight multiple enemies in open space.** Lure to corridors for 1v1.
+3. **Berserk** (`dcss.use_ability("a")`) for tough single enemies when HP is high.
+4. **Don't berserk when surrounded** — post-berserk exhaustion = slow + weak.
+5. **Tab-fight** only trivial enemies (rats, bats, worms).
+6. **Read messages carefully** — they tell you what's hitting you and how hard.
 
 ### Resource Management
-- **Rest after every fight** if safe: `dcss.rest()`
-- **Pick up potions and scrolls** — they're crucial for emergencies
-- **Quaff heal wounds** when HP is critically low in combat
-- **Read teleportation** to escape unwinnable fights
-- **Identify by use** — quaff/read unknown consumables on safe floors
+- Rest after every fight if safe
+- Always carry: 2+ heal wounds potions, 2+ teleport scrolls (after D:5)
+- Quaff heal wounds at HP < 30% in combat
+- Read teleport when fight is unwinnable
+- Identify consumables by using them on safe, cleared floors
 
 ### When to Descend
-- Floor is fully explored
-- HP and MP are full
-- No more useful items to find
-- You're not significantly underleveled
+- Floor fully explored
+- HP/MP full
+- No valuable items left
+- Not significantly underleveled for the depth
 
-### Dangerous Situations
-- **Hydras**: Don't melee with edged weapons (they grow heads). Use Berserk or wands.
-- **Sigmund**: Early unique, hits hard. Berserk him or skip.
-- **Orc packs**: Retreat to corridors, fight 1v1.
-- **Uniques with ! mark**: Named enemies, usually dangerous. Check messages for who they are.
-- **Low HP in open space**: Retreat, don't stand and fight.
+### Known Threats
+- **Hydras**: Don't melee with bladed weapons. Use clubs, spells, or wands.
+- **Sigmund**: Dangerous early unique. Berserk or skip until XL 5+.
+- **Orc packs**: Retreat to corridor. Never fight in the open.
+- **Uniques** (named enemies): Check messages, assess before engaging.
+- **Jellies/Oozes**: Can corrode equipment. Don't fight in melee if avoidable.
+- **Any enemy with !**: Usually dangerous. Caution.
+
+### Dungeon Branches (order to tackle)
+1. Dungeon D:1–D:11
+2. Lair (enter around D:8–D:11)
+3. Dungeon D:12–D:15
+4. Orc Mines (2 floors, from around D:9–D:12)
+5. Lair branches: Swamp/Snake/Shoals/Spider (pick 2 of 4 for runes)
+6. Vaults:1–4
+7. Depths:1–5
+8. Zot:1–5 (get the Orb, escape)
 
 ### Code Patterns
 
-**Basic exploration loop:**
+**Standard exploration turn:**
 ```python
-# Explore, handle what comes up
 msgs = dcss.auto_explore()
-for msg in msgs:
-    print(msg)
+for m in msgs:
+    print(m)
 if dcss.hp < dcss.max_hp:
     dcss.rest()
+print(dcss.get_stats())
 ```
 
-**Combat with HP check:**
+**Combat with retreat:**
 ```python
 if dcss.hp > dcss.max_hp * 0.5:
     dcss.auto_fight()
 else:
-    # Retreat south
-    dcss.move("s")
-    dcss.move("s")
+    dcss.move("s")  # retreat
+    dcss.rest()
 ```
 
-**Pickup and equip:**
+**Emergency heal:**
 ```python
-dcss.pickup()
 inv = dcss.get_inventory()
 for item in inv:
-    print(f"{item['slot']}: {item['name']}")
+    if "curing" in item["name"] or "heal wounds" in item["name"]:
+        dcss.quaff(item["slot"])
+        break
 ```
 
-**Use Berserk (Trog ability):**
+**Check surroundings:**
 ```python
-dcss.use_ability("a")  # Berserk
-dcss.auto_fight()
+print(dcss.get_map())
+print(dcss.get_stats())
+for m in dcss.get_messages(5):
+    print(m)
 ```
 
-### Important Notes
-- After each `dcss_execute` call, you'll see updated stats and any game messages
-- The map shows `@` as your position
-- Game messages tell you what happened — read them carefully
-- If you die, the game is over. Start a new one with `dcss_start_game`
-- DCSS is hard. Dying is normal. Learn from each death.
+---
+
+## Important Notes
+
+- **Write things down.** Every 5-10 turns, update `game_state.md`. After every death, update `learnings.md`. Your memory does not survive compaction — these files do.
+- **The game server saves automatically.** If the REPL dies, just reconnect. Your game is safe.
+- **Read `learnings.md` before every new game.** Past deaths are your best teacher.
+- **DCSS is hard.** Average human winrate is ~1%. Dying is expected. Learn from it.
 - **When in doubt, run.** A living coward beats a dead hero.
