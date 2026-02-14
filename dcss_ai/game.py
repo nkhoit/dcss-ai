@@ -441,20 +441,23 @@ class DCSSGame:
         msg_start = len(self._messages)
         
         # Drain any leftover messages before sending keys
-        leftover = self._ws.recv_messages(timeout=0.1)
+        leftover = self._ws.recv_messages(timeout=0.05)
         for msg in leftover:
             self._process_msg(msg)
         
         for key in keys:
             self._ws.send_key(key)
         
-        # Poll for input_mode=1, handling blocking states inline
+        # Poll until input_mode=1, handling blocking states inline
         deadline = time.time() + timeout
         got_input = False
+        got_player = False
         
-        while time.time() < deadline and not got_input and not self._is_dead:
+        while time.time() < deadline and not self._is_dead:
             remaining = deadline - time.time()
-            msgs = self._ws.recv_messages(timeout=min(1.0, remaining))
+            if remaining <= 0:
+                break
+            msgs = self._ws.recv_messages(timeout=min(0.5, remaining))
             
             for msg in msgs:
                 self._process_msg(msg)
@@ -463,22 +466,27 @@ class DCSSGame:
                     mode = msg.get("mode")
                     if mode == 1:
                         got_input = True
-                        # Don't break — process remaining msgs in this batch
                     elif mode == 5:
                         self._ws.send_key(" ")
                     elif mode == 7:
                         self._is_dead = True
                         self._in_game = False
+                elif mt == "player":
+                    got_player = True
                 elif mt == "close":
                     self._is_dead = True
                     self._in_game = False
-        
-        # Drain any remaining messages
-        leftover = self._ws.recv_messages(timeout=0.1)
-        for msg in leftover:
-            self._process_msg(msg)
-        
-        return self._messages[msg_start:]
+            
+            # Exit once we have both input_mode=1 AND a player update
+            # (or just input_mode=1 if player came in same batch)
+            if got_input and got_player:
+                break
+            if got_input:
+                # Got input but no player yet — do one more quick read
+                extra = self._ws.recv_messages(timeout=0.1)
+                for msg in extra:
+                    self._process_msg(msg)
+                break
         
         return self._messages[msg_start:]
     
