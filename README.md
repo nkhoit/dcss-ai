@@ -1,127 +1,162 @@
-# DCSS-AI MCP Server
+# dcss-ai
 
-An MCP (Model Context Protocol) server that allows LLMs to play Dungeon Crawl Stone Soup (DCSS) via tool calls, using the Glyphbox-style "execute_code" pattern.
+An AI agent that plays [Dungeon Crawl Stone Soup](https://crawl.develz.org/) (DCSS) through the webtiles WebSocket API. Built as an [OpenClaw](https://github.com/openclaw/openclaw) skill — the AI plays via a persistent Python REPL, writing code against a high-level game API.
 
-## Overview
+Inspired by [Glyphbox](https://github.com/kenforthewin/glyphbox)'s approach to LLM roguelike play: instead of one action per LLM call, the AI writes Python code that can loop, branch, and batch actions — dramatically reducing token usage across a 2000+ turn game.
 
-This project provides a bridge between Large Language Models and DCSS, allowing AI to play the game through a sandboxed Python environment. The AI gets access to a `dcss` object that wraps the low-level dcss-api WebSocket interface into a clean, high-level API.
+## How It Works
 
-## Components
+```
+OpenClaw Session
+  │
+  │  reads skill/SKILL.md (strategy + API reference)
+  │  reads skill/game_state.md (active game context)
+  │  reads skill/learnings.md (knowledge from past deaths)
+  │
+  ├─ exec: long-running Python REPL (holds WebSocket connection)
+  │   │
+  │   │  dcss.auto_explore()
+  │   │  dcss.auto_fight()
+  │   │  dcss.get_map()
+  │   │  ...
+  │   │
+  │   └─→ dcss-api (PyPI) ──WebSocket──→ DCSS Webtiles Server (Docker)
+  │
+  └─ writes: game_state.md (every 5-10 turns)
+             learnings.md (after every death)
+```
 
-- **`dcss_ai/game.py`** - DCSSGame class that wraps dcss-api WebtilePy
-- **`dcss_ai/sandbox.py`** - Restricted Python execution environment
-- **`dcss_ai/server.py`** - MCP server with three tools
-- **`dcss_ai/main.py`** - CLI entry point
+The AI's memory survives context compaction through two files:
+- **`game_state.md`** — current game lifeboat (character, floor, objective, threats). Overwritten regularly.
+- **`learnings.md`** — permanent knowledge base. Append-only. Every death becomes a lesson that improves future runs.
 
-## MCP Tools
+## Setup
 
-1. **`dcss_start_game(species, background, weapon)`** - Start a new game
-2. **`dcss_state()`** - Get current game state (map, stats, messages, inventory) 
-3. **`dcss_execute(code)`** - Execute Python code against the game API
+### 1. DCSS Server (Docker)
 
-## Installation
+```bash
+cd server
+docker compose up -d
+```
+
+This starts a DCSS webtiles server on `localhost:8080`.
+
+### 2. Python Environment
 
 ```bash
 cd ~/code/dcss-ai
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## Usage
+### 3. OpenClaw Skill
 
-### Start the MCP Server
+Register the skill in your OpenClaw workspace so the agent loads `SKILL.md` when playing:
+
+```
+skills/dcss-ai/SKILL.md → ~/code/dcss-ai/skill/SKILL.md
+```
+
+## Playing
+
+The AI connects via a long-running Python REPL:
 
 ```bash
-cd ~/code/dcss-ai
 source .venv/bin/activate
-python -m dcss_ai.main
+python3 -i -c "
+from dcss_ai.game import DCSSGame, Direction
+dcss = DCSSGame()
+dcss.connect('ws://localhost:8080/socket', 'kurobot', 'kurobot123')
+print('Connected. Game IDs:', dcss._game_ids)
+"
 ```
 
-### Environment Variables
+Then plays by writing Python:
 
-- `DCSS_SERVER_URL` - WebSocket URL (default: ws://localhost:8080/socket)
-- `DCSS_USERNAME` - DCSS username (default: kurobot)  
-- `DCSS_PASSWORD` - DCSS password (default: kurobot123)
+```python
+# Start a Minotaur Berserker
+dcss.start_game(species_key='b', background_key='f', weapon_key='b')
 
-### Start DCSS Server
+# Explore
+dcss.auto_explore()
 
-The project includes a Docker setup for running a DCSS webtiles server:
+# Check state
+print(dcss.get_state_text())
 
-```bash
-cd ~/code/dcss-ai/server
-docker-compose up -d
+# Fight
+dcss.auto_fight()
+
+# Heal up
+if dcss.hp < dcss.max_hp:
+    dcss.rest()
 ```
 
-This starts a DCSS server on localhost:8080.
+If the REPL dies, just reconnect — the DCSS server saves the game automatically.
 
-## Example LLM Usage
+## Game API
 
-Once connected to the MCP server, an LLM can:
-
-1. Start a game:
-```json
-{"tool": "dcss_start_game", "species": "a", "background": "a"}
+### Properties (free, no turn cost)
+```python
+dcss.hp, dcss.max_hp, dcss.mp, dcss.max_mp
+dcss.ac, dcss.ev, dcss.sh
+dcss.strength, dcss.intelligence, dcss.dexterity
+dcss.xl, dcss.place, dcss.depth, dcss.god, dcss.gold
+dcss.position, dcss.turn, dcss.is_dead
 ```
 
-2. Get current state:
-```json
-{"tool": "dcss_state"}
+### State Queries (free)
+```python
+dcss.get_messages(n=10)    # Recent game messages
+dcss.get_inventory()       # [{slot, name, quantity}, ...]
+dcss.get_map(radius=7)     # ASCII map centered on @
+dcss.get_stats()           # One-line stats summary
+dcss.get_state_text()      # Full state dump
 ```
 
-3. Execute game actions:
-```json
-{"tool": "dcss_execute", "code": "dcss.move('n')"}
-{"tool": "dcss_execute", "code": "dcss.auto_explore()"}
-{"tool": "dcss_execute", "code": "print(dcss.get_stats())"}
+### Actions (consume turns)
+```python
+dcss.move("n")             # n/s/e/w/ne/nw/se/sw
+dcss.auto_explore()        # Explore until interrupted
+dcss.auto_fight()          # Fight nearest enemy
+dcss.rest()                # Rest until healed
+dcss.pickup()              # Pick up items
+dcss.go_downstairs()       # Descend
+dcss.wield("a")            # Equip weapon by slot
+dcss.quaff("a")            # Drink potion
+dcss.read_scroll("a")      # Read scroll
+dcss.cast_spell("a", "n")  # Cast spell + direction
+dcss.use_ability("a")      # God/species ability
+dcss.send_keys("abc")      # Raw keystrokes (escape hatch)
 ```
 
-## Game API Reference
+## Project Structure
 
-The `dcss` object available in the sandbox provides:
-
-### Properties
-- `dcss.hp`, `dcss.max_hp`, `dcss.mp`, `dcss.max_mp`
-- `dcss.ac`, `dcss.ev`, `dcss.sh` (armor class, evasion, shield)
-- `dcss.str`, `dcss.int`, `dcss.dex`
-- `dcss.xl`, `dcss.place`, `dcss.depth`, `dcss.god`, `dcss.gold`
-- `dcss.position`, `dcss.is_dead`, `dcss.turn`
-
-### Actions
-- `dcss.move(direction)` - Move in direction ("n", "s", "e", "w", "ne", etc.)
-- `dcss.auto_explore()` - Start auto-exploration
-- `dcss.auto_fight()` - Auto-fight nearest enemy
-- `dcss.rest()` - Rest until healed
-- `dcss.pickup()` - Pick up items
-- `dcss.use_ability(key)`, `dcss.cast_spell(key)`
-- `dcss.quaff(key)`, `dcss.read(key)`, `dcss.wield(key)`
-- And many more...
-
-### Queries  
-- `dcss.get_messages(n=10)` - Recent game messages
-- `dcss.get_inventory()` - Current inventory
-- `dcss.get_map()` - ASCII map around player
-- `dcss.get_stats()` - Formatted stats string
-
-## Security
-
-The sandbox restricts Python execution to prevent harmful operations:
-- No imports, file I/O, or system access
-- 10 second execution timeout
-- Limited to basic builtins and the `dcss` game object
-- AST validation before execution
-
-## Development
-
-Test that everything compiles:
-
-```bash
-cd ~/code/dcss-ai
-source .venv/bin/activate
-python3 -c "from dcss_ai.game import DCSSGame; from dcss_ai.sandbox import Sandbox; print('OK')"
+```
+dcss-ai/
+├── dcss_ai/
+│   ├── game.py          # DCSSGame — high-level API over dcss-api
+│   ├── sandbox.py       # Restricted Python execution (unused in skill mode)
+│   ├── server.py        # MCP server (unused, kept for future use)
+│   └── main.py          # Entry point
+├── skill/
+│   ├── SKILL.md         # Strategy guide + API reference for the AI
+│   ├── game_state.md    # Active game context (survives compaction)
+│   └── learnings.md     # Permanent knowledge from past deaths
+├── server/
+│   └── docker-compose.yml
+└── requirements.txt
 ```
 
-## Architecture
+## Dependencies
 
-This follows the Glyphbox pattern where the LLM writes Python code against a game API object rather than making direct API calls. This provides more flexibility and allows for complex multi-step actions within a single code execution.
+- [dcss-api](https://github.com/EricFecteau/dcss-api) — Rust/Python WebSocket wrapper for DCSS webtiles
+- [OpenClaw](https://github.com/openclaw/openclaw) — AI agent framework
+- Docker — for running the DCSS webtiles server
 
-The dcss-api package handles the low-level WebSocket communication with DCSS webtiles, while this project provides the high-level MCP interface suitable for LLM interaction.
+## Credits
+
+- [DCSS](https://github.com/crawl/crawl) — the game itself
+- [dcss-api](https://github.com/EricFecteau/dcss-api) by EricFecteau — WebSocket API layer
+- [Glyphbox](https://github.com/kenforthewin/glyphbox) by kenforthewin — inspiration for the execute-code pattern
+- [frozenfoxx/crawl](https://hub.docker.com/r/frozenfoxx/crawl) — Docker image
