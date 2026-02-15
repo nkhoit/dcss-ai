@@ -99,18 +99,15 @@ class CopilotSession(LLMSession):
             if content:
                 self._current_message.append(content)
                 self.last_delta_time = time.time()
-                # Still stream to stdout for logs
-                if content.strip():
-                    sys.stdout.write(content)
-                    sys.stdout.flush()
         elif event.type == SessionEventType.ASSISTANT_MESSAGE:
-            # Complete message — write to monologue
+            # Complete message — log to console only (narrate() handles stream overlay)
             full_text = "".join(self._current_message)
             self._current_message = []
             if full_text.strip():
-                write_monologue(full_text)
                 self._silent_tool_calls = 0
-                sys.stdout.write("\n")
+                ts = time.strftime('%Y-%m-%d %H:%M:%S')
+                ms = int(time.time() * 1000) % 1000
+                sys.stdout.write(f"{ts},{ms:03d} 🤖 {full_text.strip()}\n")
                 sys.stdout.flush()
         elif event.type == SessionEventType.ASSISTANT_USAGE:
             d = event.data
