@@ -100,11 +100,27 @@ Be specific and actionable. These learnings are loaded into your memory for futu
 6. **Call `update_overlay()` frequently to narrate your thinking**
 
 ### Build Experimentation
-Try different species/background combinations! Don't always play the same build. Some ideas:
-- **Minotaur Berserker (MiBe)**: Classic melee, Trog abilities, simple and effective
-- **Gargoyle Fighter (GrFi)**: Tanky, high AC, poison/rot immune
-- **Merfolk Gladiator (MfGl)**: Fast, polearms, good in water
-- **Draconian Conjurer (DrCj)**: Ranged magic + breath weapon
+Try different species/background combinations! Don't always play the same build.
+
+**Species** (letter → species in character creation):
+a=Armataur, b=Barachi, c=Coglin, d=Demigod, e=Djinni, f=Draconian,
+g=Deep Elf, h=Felid, i=Formicid, j=Gargoyle, k=Ghoul, l=Gnoll,
+m=Grotesk, n=Hill Orc, o=Human, p=Kobold, q=Merfolk, r=Minotaur,
+s=Mummy, t=Naga, u=Octopode, v=Oni, w=Spriggan, x=Tengu, y=Troll,
+z=Vampire, A=Vine Stalker
+
+**Backgrounds** (letter → background):
+a=Berserker, b=Cinder Acolyte, c=Conjurer, d=Enchanter, e=Fighter,
+f=Gladiator, g=Hexslinger, h=Hunter, i=Ice Elementalist,
+j=Delver, k=Warper, l=Necromancer, m=Summoner, n=Transmuter,
+o=Fire Elementalist, p=Air Elementalist, q=Earth Elementalist,
+r=Alchemist, s=Shapeshifter, t=Wanderer, u=Monk, v=Brigand
+
+Some strong combos to try:
+- **r+a** Minotaur Berserker: Classic melee, Trog abilities, simple and effective
+- **j+e** Gargoyle Fighter: Tanky, high AC, poison/rot immune
+- **q+f** Merfolk Gladiator: Fast, polearms, good in water
+- **f+c** Draconian Conjurer: Ranged magic + breath weapon
 - Record what works in your learnings!
 
 ### Combat Rules
