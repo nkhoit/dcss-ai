@@ -412,8 +412,10 @@ class DCSSGame:
     
     def examine(self, slot: str) -> List[str]:
         """Examine/describe an inventory item by slot letter."""
-        # In DCSS, 'i' opens inventory, then selecting a slot shows description
-        return self._act("i", slot)
+        # Open inventory, select item to see description, then dismiss
+        msgs = self._act("i", slot)
+        self._act("key_esc")  # close description screen
+        return msgs
 
     # --- Overlay / Stats ---
 
