@@ -566,10 +566,20 @@ class DCSSGame:
                 elif mt in ("ui-push", "ui-state"):
                     # UI overlay (inventory screen, description, etc.) — escape it
                     logger.debug(f"UI overlay ({mt}) during _act, escaping (keys={keys})")
+                    # Debug: dump to file for shop analysis
+                    import json as _json
+                    with open("/tmp/dcss-ui-debug.jsonl", "a") as _f:
+                        _f.write(_json.dumps({"msg_type": mt, "type": msg.get("type"), "keys": list(keys), "data": {k: v for k, v in msg.items() if k != "body"}}, default=str) + "\n")
+                        if "body" in msg:
+                            _f.write(_json.dumps({"body_preview": str(msg["body"])[:2000]}, default=str) + "\n")
                     self._ws.send_key("key_esc")
                 elif mt == "update_menu":
                     # Menu (pickup selection, etc.) — escape it
                     logger.debug(f"Menu during _act, escaping (keys={keys})")
+                    # Debug: dump menu data
+                    import json as _json
+                    with open("/tmp/dcss-ui-debug.jsonl", "a") as _f:
+                        _f.write(_json.dumps({"msg_type": mt, "keys": list(keys), "data": str(msg)[:3000]}, default=str) + "\n")
                     self._ws.send_key("key_esc")
             
             # Exit once we have both input_mode=1 AND a player update
