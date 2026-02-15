@@ -85,7 +85,7 @@ class DCSSDriver:
         # Track tool activity to detect hangs
         last_tool_call = [0.0]  # mutable ref for closure
 
-        TURN_TIMEOUT = 120  # seconds — max time to wait for a tool call
+        TURN_TIMEOUT = 300  # seconds — max time to wait for a tool call
         MAX_RETRIES = 3     # consecutive timeouts before giving up
 
         kickoff_prompt = (
@@ -95,7 +95,7 @@ class DCSSDriver:
         )
 
         continue_prompt = (
-            "You MUST call a tool now. You stopped responding for 120 seconds without "
+            "You MUST call a tool now. You went 5 minutes without "
             "calling any tool. Call get_state_text() to check the game, then take an action. "
             "Do NOT just narrate — every response needs a tool call. "
             "If the game is over, call record_death() or record_win()."
