@@ -42,7 +42,7 @@ jobs:
           "
 
       - name: Run tests
-        run: python -m pytest tests/test_integration.py -v
+        run: python -m pytest tests/ -v
 
       - name: Stop DCSS server
         if: always()

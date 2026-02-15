@@ -22,8 +22,11 @@ def get_provider(name: str, base_url: Optional[str] = None, api_key: Optional[st
     elif name == "openai":
         from .openai import OpenAIProvider
         return OpenAIProvider(base_url=base_url, api_key=api_key)
+    elif name == "mock":
+        from .mock import MockProvider
+        return MockProvider()
     else:
-        raise ValueError(f"Unknown provider '{name}'. Available: copilot, openai")
+        raise ValueError(f"Unknown provider '{name}'. Available: copilot, openai, mock")
 
 
 def list_providers() -> list[str]:
