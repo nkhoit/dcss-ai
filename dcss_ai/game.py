@@ -63,6 +63,10 @@ class DCSSGame:
         self._map_cells: Dict[Tuple[int, int], str] = {}
         self._monsters: Dict[Tuple[int, int], Dict[str, Any]] = {}
         self._monster_names: Dict[int, str] = {}  # id -> name cache
+        
+        # Menu state
+        self._current_menu: Optional[Dict[str, Any]] = None  # active menu data
+        self._menu_items: List[Dict[str, Any]] = []  # cached menu items
     
     # --- Connection/lifecycle ---
     
@@ -461,6 +465,147 @@ class DCSSGame:
         except (FileNotFoundError, json.JSONDecodeError):
             pass
 
+    # --- Menu interaction ---
+
+    def read_menu(self) -> str:
+        """Read the currently open menu. Returns title, tag, and all items with hotkeys.
+        
+        Works for any DCSS menu: shops, spell lists, ability menus, item selection, etc.
+        If no menu is open, returns a message saying so.
+        """
+        if not self._current_menu:
+            return "No menu is currently open."
+        
+        m = self._current_menu
+        lines = []
+        tag = m.get("tag", "unknown")
+        
+        # Title
+        title = m.get("title", {})
+        if isinstance(title, dict):
+            title_text = title.get("text", "Menu")
+        elif isinstance(title, str):
+            title_text = title
+        else:
+            title_text = "Menu"
+        # Strip formatting codes
+        title_text = self._strip_formatting(title_text)
+        lines.append(f"=== {title_text} (type: {tag}) ===")
+        
+        # More text (usually shows gold for shops, or page info)
+        more = m.get("more", "")
+        if isinstance(more, dict):
+            more = more.get("text", "")
+        more = self._strip_formatting(more)
+        if more:
+            lines.append(more)
+        
+        # Items
+        for item in self._menu_items:
+            text = item.get("text", "")
+            text = self._strip_formatting(text)
+            if not text.strip():
+                continue
+            level = item.get("level", 2)
+            hotkeys = item.get("hotkeys", [])
+            
+            if level < 2:
+                # Header/category
+                lines.append(f"\n  {text}")
+            elif hotkeys:
+                key = chr(hotkeys[0]) if isinstance(hotkeys[0], int) else hotkeys[0]
+                lines.append(f"  [{key}] {text}")
+            else:
+                lines.append(f"      {text}")
+        
+        return "\n".join(lines)
+
+    def select_menu_item(self, key: str) -> str:
+        """Select an item in the current menu by pressing its hotkey letter.
+        
+        For shops: press the letter to toggle item selection, then Enter/! to buy.
+        For other menus: press the letter to select/use the item.
+        """
+        if not self._current_menu:
+            return "No menu is currently open."
+        
+        self._ws.send_key(key)
+        # Read response — menu may update or close
+        import time
+        time.sleep(0.3)
+        msgs = self._ws.recv_messages(timeout=1.0)
+        
+        menu_closed = False
+        for msg in msgs:
+            self._process_msg(msg)
+            mt = msg.get("msg")
+            if mt == "close_menu":
+                menu_closed = True
+                self._current_menu = None
+                self._menu_items = []
+            elif mt in ("menu", "update_menu", "update_menu_items"):
+                self._handle_menu_msg(msg)
+        
+        if menu_closed:
+            return f"Menu closed after pressing '{key}'."
+        elif self._current_menu:
+            return f"Pressed '{key}'. Menu still open. Use read_menu() to see updated state."
+        return f"Pressed '{key}'."
+
+    def close_menu(self) -> str:
+        """Close the currently open menu by pressing Escape."""
+        if not self._current_menu:
+            return "No menu is currently open."
+        
+        self._ws.send_key("key_esc")
+        import time
+        time.sleep(0.3)
+        msgs = self._ws.recv_messages(timeout=1.0)
+        for msg in msgs:
+            self._process_msg(msg)
+            if msg.get("msg") == "close_menu":
+                self._current_menu = None
+                self._menu_items = []
+        
+        self._current_menu = None
+        self._menu_items = []
+        return "Menu closed."
+
+    def _handle_menu_msg(self, msg: dict):
+        """Process a menu/update_menu message and cache its data."""
+        mt = msg.get("msg")
+        if mt == "menu":
+            self._current_menu = msg
+            self._menu_items = msg.get("items", [])
+        elif mt == "update_menu":
+            if self._current_menu:
+                # Merge updates
+                for k, v in msg.items():
+                    if k != "msg":
+                        self._current_menu[k] = v
+                if "items" in msg:
+                    self._menu_items = msg["items"]
+        elif mt == "update_menu_items":
+            # Partial item update
+            chunk_start = msg.get("chunk_start", 0)
+            new_items = msg.get("items", [])
+            for i, item in enumerate(new_items):
+                idx = chunk_start + i
+                if idx < len(self._menu_items):
+                    self._menu_items[idx] = item
+                else:
+                    self._menu_items.append(item)
+
+    @staticmethod
+    def _strip_formatting(text: str) -> str:
+        """Strip DCSS formatting codes from text (e.g. color tags)."""
+        import re
+        # Remove <color> tags and similar formatting
+        text = re.sub(r'<[^>]+>', '', text)
+        # Remove § color codes
+        text = re.sub(r'§.', '', text)
+        return text.strip()
+
     def update_overlay(self, thought: str = ""):
         """Write current game state + thought to the stream overlay stats file.
         
@@ -566,21 +711,16 @@ class DCSSGame:
                 elif mt in ("ui-push", "ui-state"):
                     # UI overlay (inventory screen, description, etc.) — escape it
                     logger.debug(f"UI overlay ({mt}) during _act, escaping (keys={keys})")
-                    # Debug: dump to file for shop analysis
-                    import json as _json
-                    with open("/tmp/dcss-ui-debug.jsonl", "a") as _f:
-                        _f.write(_json.dumps({"msg_type": mt, "type": msg.get("type"), "keys": list(keys), "data": {k: v for k, v in msg.items() if k != "body"}}, default=str) + "\n")
-                        if "body" in msg:
-                            _f.write(_json.dumps({"body_preview": str(msg["body"])[:2000]}, default=str) + "\n")
                     self._ws.send_key("key_esc")
-                elif mt == "update_menu":
-                    # Menu (pickup selection, etc.) — escape it
-                    logger.debug(f"Menu during _act, escaping (keys={keys})")
-                    # Debug: dump menu data
-                    import json as _json
-                    with open("/tmp/dcss-ui-debug.jsonl", "a") as _f:
-                        _f.write(_json.dumps({"msg_type": mt, "keys": list(keys), "data": str(msg)[:3000]}, default=str) + "\n")
-                    self._ws.send_key("key_esc")
+                elif mt in ("menu", "update_menu", "update_menu_items"):
+                    # Menu opened/updated — cache it for read_menu() tool
+                    logger.info(f"Menu message ({mt}) tag={msg.get('tag', '?')} during _act (keys={keys})")
+                    self._handle_menu_msg(msg)
+                    # Don't auto-escape — let the AI interact with it
+                    got_input = True  # treat menu as actionable state
+                elif mt in ("close_menu", "close_all_menus"):
+                    self._current_menu = None
+                    self._menu_items = []
             
             # Exit once we have both input_mode=1 AND a player update
             # (or just input_mode=1 if player came in same batch)

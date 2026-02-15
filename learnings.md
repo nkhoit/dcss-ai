@@ -27,3 +27,5 @@
 
 ## Recent Deaths
 (none yet)
+
+- Gained 4 poisoned darts, bringing total to 13. Lesson: Always carry multiple poisoned darts for sustained combat, especially against resistant enemies. Use them strategically to conserve other resources.

@@ -590,6 +590,51 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     
     # --- Overlay & stats ---
     
+    # --- Menu interaction ---
+
+    tools.append({
+        "name": "read_menu",
+        "description": (
+            "Read the currently open menu. Returns title, type, and all items with hotkey letters. "
+            "Works for any DCSS menu: shops (buy items with gold), spell lists, ability menus, "
+            "item selection, drop menus, etc. Call this when a menu opens to see what's available."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        },
+        "handler": lambda params: dcss.read_menu()
+    })
+
+    tools.append({
+        "name": "select_menu_item",
+        "description": (
+            "Press a hotkey letter in the current menu to select/toggle an item. "
+            "For shops: press letter to toggle selection, then Enter to confirm purchase. "
+            "For other menus: press the letter to choose that option."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "The hotkey letter to press (e.g. 'a', 'b', 'Enter')"}
+            },
+            "required": ["key"]
+        },
+        "handler": lambda params: dcss.select_menu_item(params["key"])
+    })
+
+    tools.append({
+        "name": "close_menu",
+        "description": "Close the currently open menu by pressing Escape. Use when done browsing or don't want to buy anything.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        },
+        "handler": lambda params: dcss.close_menu()
+    })
+
     tools.append({
         "name": "update_overlay",
         "description": "Update the stream overlay with current stats and your thought. Call after every action.",

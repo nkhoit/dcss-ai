@@ -89,6 +89,16 @@ deny()                    # N - deny prompts
 escape()                  # Escape key - cancel actions
 ```
 
+### Menus (shops, spells, abilities, items)
+```
+read_menu()               # See what's in the current menu (title, items, hotkeys)
+select_menu_item(key)     # Press a hotkey to select/toggle an item
+close_menu()              # Close the menu (Escape)
+```
+Menus appear for shops, spell lists, ability menus, item selection, etc.
+When a menu opens, call `read_menu()` to see its contents, then interact with hotkeys.
+For shops: select items with letter keys, then press Enter to buy. Check your gold first!
+
 ### Session & Learning
 ```
 new_attempt()             # Call once at start of each game
