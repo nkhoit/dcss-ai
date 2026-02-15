@@ -35,6 +35,11 @@ class DCSSDriver:
         self.running = True
         self.provider: Optional[LLMProvider] = None
         self.dcss = DCSSGame()
+        self.total_usage = {
+            "input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0,
+            "cache_write_tokens": 0, "premium_requests": 0, "api_calls": 0,
+            "total_duration_ms": 0,
+        }
 
         logging.basicConfig(
             level=logging.INFO,
@@ -177,8 +182,10 @@ class DCSSDriver:
         except Exception as e:
             self.logger.error(f"Error during game session: {e}")
         finally:
-            # Session cleanup — create a fresh one for next game
-            pass
+            # Accumulate usage from this session's provider
+            if session and hasattr(session, 'usage_totals'):
+                for k in self.total_usage:
+                    self.total_usage[k] += session.usage_totals.get(k, 0)
 
     async def run_forever(self):
         """Main loop - runs games forever until interrupted."""
@@ -244,6 +251,12 @@ class DCSSDriver:
         print(f"  Wins:          {self.dcss._wins}")
         print(f"  Runtime:       {hours}h {mins}m {secs}s")
         print(f"  Model:         {self.args.model}")
+        print(f"  API calls:     {self.total_usage['api_calls']:,}")
+        print(f"  Input tokens:  {self.total_usage['input_tokens']:,}")
+        print(f"  Output tokens: {self.total_usage['output_tokens']:,}")
+        print(f"  Cache read:    {self.total_usage['cache_read_tokens']:,}")
+        print(f"  Cache write:   {self.total_usage['cache_write_tokens']:,}")
+        print(f"  API time:      {self.total_usage['total_duration_ms']/1000:.1f}s")
         print(f"{'='*50}\n")
 
         # Clean up game
