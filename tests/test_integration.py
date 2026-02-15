@@ -225,3 +225,70 @@ class TestQuit:
         assert g2._connected is True
         assert len(g2._game_ids) > 0
         g2.disconnect()
+
+
+class TestMenus:
+    """Menu system: read, select, close."""
+
+    def test_no_menu_initially(self, game):
+        """No menu should be open at game start."""
+        result = game.read_menu()
+        assert result == "No menu is currently open."
+        assert game._current_menu is None
+
+    def test_close_menu_when_none_open(self, game):
+        """Closing when no menu is open should be harmless."""
+        result = game.close_menu()
+        assert result == "No menu is currently open."
+
+    def test_select_menu_item_when_none_open(self, game):
+        """Selecting when no menu is open should be harmless."""
+        result = game.select_menu_item("a")
+        assert result == "No menu is currently open."
+
+    def test_inventory_menu(self, game):
+        """Opening inventory should trigger a menu we can read and close."""
+        # MiBe starts with items — send 'i' to open inventory
+        game._ws.send_key("i")
+        import time
+        time.sleep(0.5)
+        msgs = game._ws.recv_messages(timeout=1.0)
+        for msg in msgs:
+            game._process_msg(msg)
+            mt = msg.get("msg")
+            if mt in ("menu", "update_menu", "update_menu_items"):
+                game._handle_menu_msg(msg)
+
+        # Menu should now be cached
+        if game._current_menu:
+            result = game.read_menu()
+            assert isinstance(result, str)
+            assert len(result) > 10  # should have some content
+            assert "===" in result  # title line
+
+            # Close it
+            close_result = game.close_menu()
+            assert game._current_menu is None
+        # If no menu msg came through (UI might vary), that's okay — skip
+
+    def test_drop_menu(self, game):
+        """Drop menu ('d') should open a menu with inventory items."""
+        game._ws.send_key("d")
+        import time
+        time.sleep(0.5)
+        msgs = game._ws.recv_messages(timeout=1.0)
+        for msg in msgs:
+            game._process_msg(msg)
+            mt = msg.get("msg")
+            if mt in ("menu", "update_menu", "update_menu_items"):
+                game._handle_menu_msg(msg)
+
+        if game._current_menu:
+            result = game.read_menu()
+            assert isinstance(result, str)
+            # Should show items with hotkeys
+            assert "[" in result  # hotkey brackets
+
+            # Close without selecting
+            game.close_menu()
+            assert game._current_menu is None

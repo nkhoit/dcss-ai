@@ -404,12 +404,12 @@ class DCSSGame:
     def pray(self) -> List[str]:
         return self._act("p")
     
-    def confirm(self) -> List[str]:
-        return self._act("Y")
-    
-    def deny(self) -> List[str]:
-        return self._act("N")
-    
+    def respond(self, action: str) -> List[str]:
+        """Respond to a prompt: yes (Y), no (N), or escape."""
+        key_map = {"yes": "Y", "no": "N", "escape": "key_esc"}
+        key = key_map.get(action.lower(), "key_esc")
+        return self._act(key)
+
     def escape(self) -> List[str]:
         return self._act("key_esc")
     
@@ -467,6 +467,27 @@ class DCSSGame:
                 self._deaths = data.get("deaths", 0)
         except (FileNotFoundError, json.JSONDecodeError):
             pass
+
+    def read_ui(self) -> str:
+        """Read whatever UI element is currently open (menu or popup).
+        
+        Returns the content of the active menu or popup, whichever is open.
+        """
+        if self._current_menu:
+            return self.read_menu()
+        if self._current_popup:
+            return self.read_popup()
+        return "No menu or popup is currently open."
+
+    def dismiss(self) -> str:
+        """Dismiss the current UI element (menu or popup) by pressing Escape."""
+        if self._current_menu:
+            return self.close_menu()
+        if self._current_popup:
+            return self.dismiss_popup()
+        # Still send escape in case something is open we don't track
+        self._ws.send_key("key_esc")
+        return "Escape pressed."
 
     # --- Menu interaction ---
 

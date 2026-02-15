@@ -496,20 +496,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     # --- Combat & abilities ---
     
     tools.append({
-        "name": "attack",
-        "description": "Melee attack in a direction. Use when auto_fight is blocked at low HP.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "direction": {"type": "string", "description": "Direction: n/s/e/w/ne/nw/se/sw"}
-            },
-            "required": ["direction"]
-        },
-        "handler": _make_handler(dcss, "attack", DirectionParams)
-    })
-    tools[-1]["handler"]._default_msg = "Attacked."
-    
-    tools.append({
         "name": "use_ability",
         "description": "Use a god/species ability by key. a=Berserk, b=Trog's Hand, c=Brothers in Arms.",
         "parameters": {
@@ -553,58 +539,34 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     # --- Interface ---
     
     tools.append({
-        "name": "confirm",
-        "description": "Confirm a prompt (Y).",
+        "name": "respond",
+        "description": "Respond to a game prompt. action: 'yes' (confirm), 'no' (deny), or 'escape' (cancel).",
         "parameters": {
             "type": "object",
-            "properties": {},
-            "required": []
+            "properties": {
+                "action": {"type": "string", "description": "yes / no / escape"}
+            },
+            "required": ["action"]
         },
-        "handler": _make_handler(dcss, "confirm", EmptyParams)
+        "handler": lambda params: dcss.respond(params["action"])
     })
-    tools[-1]["handler"]._default_msg = "Confirmed."
-    
-    tools.append({
-        "name": "deny",
-        "description": "Deny a prompt (N).",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        },
-        "handler": _make_handler(dcss, "deny", EmptyParams)
-    })
-    tools[-1]["handler"]._default_msg = "Denied."
-    
-    tools.append({
-        "name": "escape",
-        "description": "Press Escape to cancel.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        },
-        "handler": _make_handler(dcss, "escape", EmptyParams)
-    })
-    tools[-1]["handler"]._default_msg = "Escaped."
     
     # --- Overlay & stats ---
     
-    # --- Menu interaction ---
+    # --- UI interaction ---
 
     tools.append({
-        "name": "read_menu",
+        "name": "read_ui",
         "description": (
-            "Read the currently open menu. Returns title, type, and all items with hotkey letters. "
-            "Works for any DCSS menu: shops (buy items with gold), spell lists, ability menus, "
-            "item selection, drop menus, etc. Call this when a menu opens to see what's available."
+            "Read the currently open UI element (menu or popup). Returns title, items, "
+            "and content. Works for shops, spell lists, item descriptions, god info, etc."
         ),
         "parameters": {
             "type": "object",
             "properties": {},
             "required": []
         },
-        "handler": lambda params: dcss.read_menu()
+        "handler": lambda params: dcss.read_ui()
     })
 
     tools.append({
@@ -625,41 +587,14 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     })
 
     tools.append({
-        "name": "close_menu",
-        "description": "Close the currently open menu by pressing Escape. Use when done browsing or don't want to buy anything.",
+        "name": "dismiss",
+        "description": "Dismiss/close the current UI element (menu or popup) by pressing Escape.",
         "parameters": {
             "type": "object",
             "properties": {},
             "required": []
         },
-        "handler": lambda params: dcss.close_menu()
-    })
-
-    # --- UI popup interaction ---
-
-    tools.append({
-        "name": "read_popup",
-        "description": (
-            "Read the currently open UI popup (item description, god info, monster info, etc.). "
-            "Returns the popup type and text content. Call when a popup appears."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        },
-        "handler": lambda params: dcss.read_popup()
-    })
-
-    tools.append({
-        "name": "dismiss_popup",
-        "description": "Dismiss the currently open UI popup by pressing Escape.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        },
-        "handler": lambda params: dcss.dismiss_popup()
+        "handler": lambda params: dcss.dismiss()
     })
 
     tools.append({

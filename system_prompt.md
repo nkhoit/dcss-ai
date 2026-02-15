@@ -55,9 +55,9 @@ wait_turn()               # Wait one turn
 ### Combat
 ```
 auto_fight()              # Tab-fight nearest enemy
-attack(direction)         # Manual melee attack in direction
 rest()                    # Rest until healed (no enemies in sight)
 ```
+To melee attack: use `move(direction)` toward the enemy — moving into an enemy attacks it.
 
 ### Items & Equipment
 ```
@@ -84,25 +84,17 @@ pray()                    # Pray to your god
 
 ### Interface
 ```
-confirm()                 # Y - confirm prompts
-deny()                    # N - deny prompts
-escape()                  # Escape key - cancel actions
+respond(action)           # Respond to prompts: "yes" / "no" / "escape"
 ```
 
-### Menus (shops, spells, abilities, items)
+### UI (menus, popups, shops, descriptions)
 ```
-read_menu()               # See what's in the current menu (title, items, hotkeys)
-select_menu_item(key)     # Press a hotkey to select/toggle an item
-close_menu()              # Close the menu (Escape)
+read_ui()                 # Read the current menu or popup (title, items, text)
+select_menu_item(key)     # Press a hotkey to select/toggle an item in a menu
+dismiss()                 # Close the current menu or popup (Escape)
 ```
-
-### Popups (descriptions, god info, monster info)
-```
-read_popup()              # Read the current UI popup text
-dismiss_popup()           # Close the popup (Escape)
-```
-Menus and popups appear during gameplay. When one opens, read it to see contents,
-then interact or dismiss. For shops: select items with letter keys, then Enter to buy.
+When a menu or popup opens, call `read_ui()` to see contents, then interact or dismiss.
+For shops: select items with letter keys, then Enter to buy. Check your gold first!
 
 ### Session & Learning
 ```
