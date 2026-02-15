@@ -45,22 +45,22 @@ class LearningParams(BaseModel):
     text: str = Field(description="A lesson learned from this game. Be specific and actionable.")
 
 class StartGameParams(BaseModel):
-    species_key: str = Field(default="r", description=(
-        "Species key: a=Armataur, b=Barachi, c=Coglin, d=Demigod, e=Djinni, "
-        "f=Draconian, g=Deep Elf, h=Felid, i=Formicid, j=Gargoyle, k=Ghoul, "
-        "l=Gnoll, m=Grotesk, n=Hill Orc, o=Human, p=Kobold, q=Merfolk, "
-        "r=Minotaur, s=Mummy, t=Naga, u=Octopode, v=Oni, w=Spriggan, "
-        "x=Tengu, y=Troll, z=Vampire, A=Vine Stalker"
+    species_key: str = Field(default="b", description=(
+        "Species key (0.34): a=Gnoll, b=Minotaur, c=Merfolk, d=Gargoyle, "
+        "e=Mountain Dwarf, f=Draconian, g=Troll, h=Deep Elf, i=Armataur, "
+        "j=Human, k=Kobold, l=Revenant, m=Demonspawn, n=Djinni, o=Spriggan, "
+        "p=Tengu, q=Oni, r=Barachi, s=Coglin, t=Vine Stalker, u=Poltergeist, "
+        "v=Demigod, w=Formicid, x=Naga, y=Octopode, z=Felid, A=Mummy"
     ))
-    background_key: str = Field(default="a", description=(
-        "Background key: a=Berserker, b=Cinder Acolyte, c=Conjurer, "
-        "d=Enchanter, e=Fighter, f=Gladiator, g=Hexslinger, h=Hunter, "
-        "i=Ice Elementalist, j=Delver, k=Warper, l=Necromancer, "
-        "m=Summoner, n=Transmuter, o=Fire Elementalist, p=Air Elementalist, "
-        "q=Earth Elementalist, r=Alchemist, s=Shapeshifter, t=Wanderer, "
-        "u=Monk, v=Brigand"
+    background_key: str = Field(default="f", description=(
+        "Background key (0.34): a=Fighter, b=Gladiator, c=Monk, d=Hunter, "
+        "e=Brigand, f=Berserker, g=Cinder Acolyte, h=Chaos Knight, "
+        "i=Artificer, j=Shapeshifter, k=Wanderer, l=Delver, m=Warper, "
+        "n=Hexslinger, o=Enchanter, p=Reaver, q=Hedge Wizard, r=Conjurer, "
+        "s=Summoner, t=Necromancer, u=Forgewright, v=Fire Elementalist, "
+        "w=Ice Elementalist, x=Air Elementalist, y=Earth Elementalist, z=Alchemist"
     ))
-    weapon_key: str = Field(default="b", description="Weapon key (a or b, depends on background)")
+    weapon_key: str = Field(default="", description="Weapon key if prompted (a/b/etc, leave empty for auto)")
 
 class MapParams(BaseModel):
     radius: int = Field(default=7, description="Map view radius")
@@ -669,21 +669,21 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
             "type": "object",
             "properties": {
                 "species_key": {"type": "string", "description": (
-                    "Species key: a=Armataur, b=Barachi, c=Coglin, d=Demigod, e=Djinni, "
-                    "f=Draconian, g=Deep Elf, h=Felid, i=Formicid, j=Gargoyle, k=Ghoul, "
-                    "l=Gnoll, m=Grotesk, n=Hill Orc, o=Human, p=Kobold, q=Merfolk, "
-                    "r=Minotaur, s=Mummy, t=Naga, u=Octopode, v=Oni, w=Spriggan, "
-                    "x=Tengu, y=Troll, z=Vampire, A=Vine Stalker"
-                ), "default": "r"},
+                    "Species key (0.34): a=Gnoll, b=Minotaur, c=Merfolk, d=Gargoyle, "
+                    "e=Mountain Dwarf, f=Draconian, g=Troll, h=Deep Elf, i=Armataur, "
+                    "j=Human, k=Kobold, l=Revenant, m=Demonspawn, n=Djinni, o=Spriggan, "
+                    "p=Tengu, q=Oni, r=Barachi, s=Coglin, t=Vine Stalker, u=Poltergeist, "
+                    "v=Demigod, w=Formicid, x=Naga, y=Octopode, z=Felid, A=Mummy"
+                ), "default": "b"},
                 "background_key": {"type": "string", "description": (
-                    "Background key: a=Berserker, b=Cinder Acolyte, c=Conjurer, "
-                    "d=Enchanter, e=Fighter, f=Gladiator, g=Hexslinger, h=Hunter, "
-                    "i=Ice Elementalist, j=Delver, k=Warper, l=Necromancer, "
-                    "m=Summoner, n=Transmuter, o=Fire Elementalist, p=Air Elementalist, "
-                    "q=Earth Elementalist, r=Alchemist, s=Shapeshifter, t=Wanderer, "
-                    "u=Monk, v=Brigand"
-                ), "default": "a"},
-                "weapon_key": {"type": "string", "description": "Weapon key (a or b, depends on background)", "default": "b"}
+                    "Background key (0.34): a=Fighter, b=Gladiator, c=Monk, d=Hunter, "
+                    "e=Brigand, f=Berserker, g=Cinder Acolyte, h=Chaos Knight, "
+                    "i=Artificer, j=Shapeshifter, k=Wanderer, l=Delver, m=Warper, "
+                    "n=Hexslinger, o=Enchanter, p=Reaver, q=Hedge Wizard, r=Conjurer, "
+                    "s=Summoner, t=Necromancer, u=Forgewright, v=Fire Elementalist, "
+                    "w=Ice Elementalist, x=Air Elementalist, y=Earth Elementalist, z=Alchemist"
+                ), "default": "f"},
+                "weapon_key": {"type": "string", "description": "Weapon key if prompted (a/b/etc, leave empty for auto)", "default": ""}
             },
             "required": []
         },
