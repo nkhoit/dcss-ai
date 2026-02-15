@@ -51,6 +51,8 @@ class DCSSGame:
         self._position = (0, 0)
         self._turn = 0
         self._is_dead = False
+        self._species = ""
+        self._title = ""
         
         # Inventory
         self._inventory: Dict[int, Dict[str, Any]] = {}
@@ -269,7 +271,9 @@ class DCSSGame:
         return enemies
     
     def get_stats(self) -> str:
+        char_info = f"{self._species} {self._title}".strip() if self._species else "Unknown"
         return (
+            f"Character: {char_info} | "
             f"HP: {self._hp}/{self._max_hp} | MP: {self._mp}/{self._max_mp} | "
             f"AC: {self._ac} EV: {self._ev} SH: {self._sh} | "
             f"Str: {self._str} Int: {self._int} Dex: {self._dex} | "
@@ -461,12 +465,12 @@ class DCSSGame:
         Call this after significant events: each action, level changes, death, win.
         The overlay HTML polls this file every 2 seconds.
         """
-        species_bg = f"{self._place}" if self._place else "—"
+        character = f"{self._species} {self._title}".strip() if self._species else "—"
         data = {
             "attempt": self._attempt,
             "wins": self._wins,
             "deaths": self._deaths,
-            "character": species_bg,
+            "character": character,
             "xl": self._xl,
             "place": f"{self._place}:{self._depth}" if self._place else "—",
             "turn": self._turn,
@@ -580,6 +584,7 @@ class DCSSGame:
             "str": "_str", "int": "_int", "dex": "_dex",
             "xl": "_xl", "place": "_place", "depth": "_depth",
             "god": "_god", "gold": "_gold", "turn": "_turn",
+            "species": "_species", "title": "_title",
         }
         for json_key, attr in field_map.items():
             if json_key in msg:
