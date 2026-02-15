@@ -560,6 +560,10 @@ class DCSSGame:
                     # UI overlay (inventory screen, description, etc.) — escape it
                     logger.debug(f"UI overlay ({mt}) during _act, escaping (keys={keys})")
                     self._ws.send_key("key_esc")
+                elif mt == "update_menu":
+                    # Menu (pickup selection, etc.) — escape it
+                    logger.debug(f"Menu during _act, escaping (keys={keys})")
+                    self._ws.send_key("key_esc")
             
             # Exit once we have both input_mode=1 AND a player update
             # (or just input_mode=1 if player came in same batch)
