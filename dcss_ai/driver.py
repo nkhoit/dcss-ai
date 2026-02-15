@@ -149,9 +149,14 @@ class DCSSDriver:
                             )
                             break
                         else:
-                            # SDK ended but game is still going — continue with a nudge
-                            self.logger.warning("SDK session completed but game still active, continuing...")
-                            prompt = "The session was interrupted. Continue playing — check your state with get_stats() and keep exploring."
+                            # SDK ended but game is still going — create fresh session
+                            self.logger.warning("SDK session completed but game still active, creating new session...")
+                            session = await self.provider.create_session(system_prompt, tools, self.config["model"])
+                            self._active_session = session
+                            prompt = (
+                                "You are continuing a game already in progress. "
+                                "Call get_stats() and get_state_text() to see your current state, then keep playing."
+                            )
                             retries += 1
                             continue
                     else:
