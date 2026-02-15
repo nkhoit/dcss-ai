@@ -64,10 +64,33 @@ class GameActions:
         return self._act("a", key)
 
     def cast_spell(self, key: str, direction: str = "") -> List[str]:
-        if direction:
-            return self._act("z", key, self._dir_key(direction))
+        # Stage 1: open spell menu and select spell
+        # This will trigger a targeting prompt (mode 7) for targeted spells
+        self._ws.send_key("z")
+        self._ws.send_key(key)
+        # Brief wait for the server to process
+        import time
+        time.sleep(0.15)
+        # Drain messages to see what happened
+        msgs = self._ws.recv_messages(timeout=0.5)
+        targeting = False
+        for msg in msgs:
+            self._process_msg(msg)
+            if msg.get("msg") == "input_mode" and msg.get("mode") in (4, 7):
+                targeting = True
+        if targeting:
+            # Stage 2: send direction or confirm
+            if direction:
+                return self._act(self._dir_key(direction))
+            else:
+                return self._act(".")
         else:
-            return self._act("z", key, ".")
+            # Spell was instant (self-target) or failed - drain remaining
+            more_msgs = self._ws.recv_messages(timeout=0.3)
+            for msg in more_msgs:
+                self._process_msg(msg)
+            msg_start = max(0, len(self._messages) - 5)
+            return self._messages[msg_start:]
 
     def _dir_key(self, direction: str) -> str:
         key_map = {"n": "key_dir_n", "s": "key_dir_s", "e": "key_dir_e", "w": "key_dir_w",

@@ -252,6 +252,11 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
                             self._ws.send_key("key_esc")
                     elif mode == 0:
                         pass
+                    elif mode == 4:
+                        # Targeting mode — waiting for direction input
+                        # Don't escape, let the caller handle it
+                        logger.debug(f"Targeting mode (mode=4) during _act (keys={keys})")
+                        got_input = True
                     else:
                         logger.info(f"Unknown input_mode={mode}, escaping (keys={keys})")
                         self._ws.send_key("key_esc")
