@@ -1,79 +1,58 @@
 # dcss-ai
 
-An autonomous AI that plays [Dungeon Crawl Stone Soup](https://crawl.develz.org/) (DCSS), streams on Twitch, and learns from every death.
+An autonomous AI agent that plays [Dungeon Crawl Stone Soup](https://crawl.develz.org/) (DCSS), learns from every death, and streams on Twitch.
 
-Built with the [GitHub Copilot SDK](https://github.com/github/copilot-sdk) — the AI calls game tools directly (move, fight, explore, use items) through a WebSocket connection to the DCSS webtiles server. Each game is one Copilot session; learnings persist across sessions in `learnings.md`.
+Built with the [GitHub Copilot SDK](https://github.com/github/copilot-sdk). The AI calls game tools directly — move, fight, explore, use items — through a pure-Python WebSocket connection to a local DCSS webtiles server. Each game is one Copilot session; accumulated learnings persist across games in `learnings.md`.
 
-## Architecture
+## How It Works
 
 ```
-driver.py
+driver.py — Game loop (infinite: play → die → learn → repeat)
   │
-  │  System prompt: system_prompt.md + learnings.md
-  │  One Copilot SDK session per game
+  ├─ Copilot SDK session (one per game)
+  │   ├─ System prompt: system_prompt.md + learnings.md
+  │   ├─ 35+ tools: get_state, move, auto_explore, attack, quaff, ...
+  │   └─ On death/win: write_learning() → end session → next game
   │
-  ├─ Copilot SDK ─── tool calls ───→ DCSSGame (game.py)
-  │   │                                  │
-  │   │  get_state_text()                │
-  │   │  auto_explore()                  ├─→ dcss-api ──WebSocket──→ DCSS Server (Docker)
-  │   │  attack("n")                     │
-  │   │  update_overlay("hunting orc")   ├─→ ~/code/dcss-stream/stats.json
-  │   │  record_death("orc priest")      │
-  │   │  ...                             │
-  │   │                                  │
-  │   └─ On death/win: write learnings, end session
-  │   └─ Loop: new session with fresh context
+  ├─ DCSSGame (game.py) — High-level game API
+  │   └─ WebTilesConnection (webtiles.py) — Pure Python WebSocket client
+  │       └─ DCSS Webtiles Server (Docker, port 8080)
   │
-  └─ Stream overlay polls stats.json every 2s
+  └─ Stream overlay (stats.json → OBS browser source)
 ```
 
 **Key design choices:**
-- **One session = one game.** Fresh context each run, but `learnings.md` carries wisdom between games.
-- **Tools, not code.** The AI calls discrete game actions — no REPL, no code generation.
-- **Stream-aware.** The AI calls `update_overlay()` with a brief thought after every action, so Twitch viewers see its reasoning.
+- **One session = one game.** Fresh LLM context each run. `learnings.md` carries wisdom between games.
+- **Tools, not code generation.** The AI calls discrete game actions — no REPL, no arbitrary code.
+- **Pure Python WebSocket client.** No Rust dependencies. Handles zlib decompression, message batching, keepalive pings, More prompts, and all DCSS protocol quirks.
+- **Stream-aware.** `update_overlay()` writes the AI's current thought to `stats.json`, polled by an OBS browser source overlay.
 
-## Setup
+## Quick Start
 
-### 1. Docker (for the DCSS server)
+### Prerequisites
 
-```bash
-# Linux
-sudo apt install -y docker.io docker-compose-v2
-sudo usermod -aG docker $USER && newgrp docker
+- Python 3.10+
+- Docker (for the DCSS server)
+- [GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli) (authenticated, with Copilot Pro+ or Enterprise)
 
-# Windows — install Docker Desktop, enable WSL2 integration
-```
-
-### 2. Clone & install
+### Setup
 
 ```bash
-cd ~/code
 git clone https://github.com/nkhoit/dcss-ai.git
 cd dcss-ai
 
+# Python environment
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 pip install github-copilot-sdk
-```
 
-### 3. Start the DCSS server
-
-```bash
+# Start the DCSS server
 cd server && docker compose up -d
-# Verify: docker ps (should show dcss-webtiles on port 8080)
-# Web UI: http://localhost:8080
+# Verify: http://localhost:8080 should show the DCSS lobby
 ```
 
-### 4. Authenticate Copilot CLI
-
-The SDK requires the [Copilot CLI](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli) installed and authenticated:
-
-```bash
-copilot --version  # verify it's installed
-```
-
-### 5. Run the driver
+### Run
 
 ```bash
 source .venv/bin/activate
@@ -84,24 +63,49 @@ python dcss_ai/driver.py \
   --model claude-sonnet-4
 ```
 
-The driver connects to DCSS, creates a Copilot session, and plays forever — dying, learning, and restarting.
+The driver connects to DCSS, creates a Copilot session, and plays forever — dying, learning, and restarting. Use `--single` for a one-game test run.
 
-## Stream Setup
+## Game API
 
-The stream overlay lives in `~/code/dcss-stream/`:
+The `DCSSGame` class provides a clean Python API over the DCSS webtiles protocol.
 
-- **`overlay.html`** — Browser Source for OBS (transparent overlay with stats + thought bubble)
-- **`stats.json`** — Polled by the overlay every 2s, updated by the game driver
-- **`start-stream.sh`** — Launcher script (starts Docker, overlay server, driver, OBS)
+### State (free, no turn cost)
+| Method | Returns |
+|---|---|
+| `get_state_text()` | Full dump: stats, messages, enemies, inventory, map |
+| `get_map(radius=7)` | ASCII map centered on `@` |
+| `get_inventory()` | `[{slot, name, quantity}, ...]` |
+| `get_nearby_enemies()` | `[{name, direction, distance, threat}, ...]` |
+| `get_stats()` | One-line: `HP/MP/AC/EV/XL/place/turn` |
+| `get_messages(n=10)` | Recent game messages |
 
-Stats JSON format:
-```json
-{"attempt": 5, "wins": 0, "deaths": 4, "character": "MiBe", "xl": 7, "place": "D:5", "turn": 1234, "thought": "orc pack ahead, luring to corridor", "status": "playing"}
-```
+### Actions (consume turns)
+| Method | Description |
+|---|---|
+| `move(dir)` | Move one step (`n/s/e/w/ne/nw/se/sw`) |
+| `auto_explore()` | Explore until interrupted |
+| `auto_fight()` | Tab-fight nearest (blocked at low HP) |
+| `attack(dir)` | Melee in direction (works at any HP) |
+| `rest()` | Rest until healed |
+| `pickup()` | Pick up items |
+| `go_downstairs()` / `go_upstairs()` | Use stairs |
+| `wield(slot)` / `wear(slot)` | Equip weapon/armour |
+| `quaff(slot)` / `read_scroll(slot)` | Use consumables |
+| `zap_wand(slot, dir)` | Zap a wand |
+| `use_ability(key)` | God/species ability |
+| `cast_spell(key, dir)` | Cast spell |
+| `examine(slot)` | Inspect an item |
 
-## Manual Play (OpenClaw Skill)
+### Stream Overlay
+| Method | Description |
+|---|---|
+| `update_overlay(thought)` | Update stats.json with current thought |
+| `new_attempt()` | Increment attempt counter |
+| `record_death(cause)` / `record_win()` | Track game outcomes |
 
-For interactive play through an [OpenClaw](https://github.com/openclaw/openclaw) agent, symlink the skill:
+## OpenClaw Skill
+
+For interactive play through an [OpenClaw](https://github.com/openclaw/openclaw) agent:
 
 ```bash
 ln -s ~/code/dcss-ai/skill ~/.openclaw/workspace-main/skills/dcss-ai
@@ -109,65 +113,30 @@ ln -s ~/code/dcss-ai/skill ~/.openclaw/workspace-main/skills/dcss-ai
 
 Then tell your agent to "play DCSS" — it loads `SKILL.md` and plays through a Python REPL.
 
-## Game API
-
-### State queries (free, no turn cost)
-```python
-dcss.get_state_text()      # Full state dump
-dcss.get_map(radius=7)     # ASCII map centered on @
-dcss.get_inventory()       # [{slot, name, quantity}, ...]
-dcss.get_nearby_enemies()  # Sorted by distance
-dcss.get_stats()           # One-line: HP/MP/AC/EV/XL/place/turn
-dcss.get_messages(n=10)    # Recent game messages
-```
-
-### Actions (consume turns)
-```python
-dcss.move("n")             # n/s/e/w/ne/nw/se/sw
-dcss.auto_explore()        # Explore until interrupted
-dcss.auto_fight()          # Fight nearest (blocked at low HP)
-dcss.attack("n")           # Melee in direction (works at any HP)
-dcss.rest()                # Rest until healed
-dcss.pickup()              # Pick up items
-dcss.go_downstairs()       # Descend
-dcss.wield("a")            # Equip weapon by slot
-dcss.wear("b")             # Wear armour
-dcss.quaff("a")            # Drink potion
-dcss.read_scroll("a")      # Read scroll
-dcss.use_ability("a")      # God/species ability (a=Berserk)
-dcss.cast_spell("a", "n")  # Cast spell + direction
-dcss.send_keys("abc")      # Raw keystrokes (escape hatch)
-```
-
-### Overlay & lifecycle
-```python
-dcss.update_overlay("thought")  # Update stream overlay
-dcss.new_attempt()              # Increment attempt counter
-dcss.record_death("cause")     # Record death + increment counter
-dcss.record_win()              # Record win
-```
-
 ## Project Structure
 
 ```
 dcss-ai/
 ├── dcss_ai/
-│   ├── driver.py        # Autonomous game driver (Copilot SDK)
-│   ├── game.py          # DCSSGame — high-level API over dcss-api
-│   ├── system_prompt.md # System prompt for the playing agent
-│   ├── sandbox.py       # Restricted Python execution (for REPL mode)
-│   ├── server.py        # MCP server (experimental)
-│   └── main.py          # Entry point (REPL mode)
+│   ├── driver.py          # Autonomous driver (Copilot SDK, game loop)
+│   ├── game.py            # DCSSGame — high-level game API
+│   ├── webtiles.py        # Pure Python WebSocket client for DCSS protocol
+│   ├── system_prompt.md   # System prompt for the playing agent
+│   ├── sandbox.py         # Restricted Python execution (REPL mode)
+│   ├── server.py          # MCP server (experimental, for OpenClaw skill)
+│   └── main.py            # Entry point (REPL mode)
 ├── skill/
-│   ├── SKILL.md         # OpenClaw skill: strategy guide + API reference
-│   └── learnings.md     # Persistent knowledge from past deaths
+│   ├── SKILL.md           # OpenClaw skill definition
+│   ├── game_state.md      # Active game state (updated during play)
+│   └── learnings.md       # Persistent knowledge from past games
 ├── server/
-│   └── docker-compose.yml
+│   └── docker-compose.yml # DCSS webtiles server (frozenfoxx/crawl)
 └── requirements.txt
 ```
 
 ## Credits
 
-- [DCSS](https://github.com/crawl/crawl) — the game
+- [DCSS](https://github.com/crawl/crawl) — Dungeon Crawl Stone Soup
 - [GitHub Copilot SDK](https://github.com/github/copilot-sdk) — LLM agent framework
 - [frozenfoxx/crawl](https://hub.docker.com/r/frozenfoxx/crawl) — Docker image
+- [dcss-api](https://github.com/EricFecteau/dcss-api) — Reference for the webtiles protocol
