@@ -357,8 +357,8 @@ class DCSSGame:
         return self._act(">")
     
     def pickup(self) -> List[str]:
-        """Pick up items at current position. Handles single and multi-item."""
-        return self._act("g")
+        """Pick up items at current position. Uses comma to auto-grab all."""
+        return self._act(",")
     
     def use_ability(self, key: str) -> List[str]:
         """Use ability: a=Berserk, b=Trog's Hand, c=Brothers in Arms."""
