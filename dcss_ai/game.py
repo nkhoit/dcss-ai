@@ -511,10 +511,14 @@ class DCSSGame:
                     if mode == 1:
                         got_input = True
                     elif mode == 5:
+                        # "More" prompt — press space to continue
                         self._ws.send_key(" ")
                     elif mode == 7:
                         self._is_dead = True
                         self._in_game = False
+                    else:
+                        # Unknown menu/mode — escape out of it
+                        self._ws.send_key("key_esc")
                 elif mt == "player":
                     got_player = True
                 elif mt == "close":
