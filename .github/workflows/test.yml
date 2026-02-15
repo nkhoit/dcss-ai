@@ -24,7 +24,7 @@ jobs:
 
       - name: Start DCSS server
         run: |
-          docker run -d --name dcss-webtiles -p 8080:8080 frozenfoxx/crawl:latest
+          docker run -d --name dcss-webtiles -p 8080:8080 ghcr.io/nkhoit/dcss-webtiles:latest
           # Wait for WebSocket to accept connections
           pip install websockets -q
           python -c "
