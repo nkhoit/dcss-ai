@@ -628,6 +628,19 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         },
         "handler": lambda params: dcss.respond(params["action"])
     })
+
+    tools.append({
+        "name": "choose_stat",
+        "description": "Choose which stat to increase on level up. Called when you see 'Increase (S)trength, (I)ntelligence, or (D)exterity?'. Pick based on your build: melee→s, caster→i, hybrid→depends.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "stat": {"type": "string", "description": "s (Strength), i (Intelligence), or d (Dexterity)"}
+            },
+            "required": ["stat"]
+        },
+        "handler": lambda params: dcss.choose_stat(params["stat"])
+    })
     
     # --- Overlay & stats ---
     

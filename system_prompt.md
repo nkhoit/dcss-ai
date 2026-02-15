@@ -106,6 +106,7 @@ pray()                    # Pray to your god
 ### Interface
 ```
 respond(action)           # Respond to prompts: "yes" / "no" / "escape"
+choose_stat(stat)         # Level up stat increase: "s" (STR), "i" (INT), "d" (DEX) — pick based on build
 ```
 
 ### UI (menus, popups, shops, descriptions)

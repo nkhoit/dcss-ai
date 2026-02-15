@@ -72,6 +72,9 @@ class DCSSGame:
         # UI popup state
         self._current_popup: Optional[Dict[str, Any]] = None
         
+        # Pending text prompt (e.g. stat increase)
+        self._pending_prompt: Optional[str] = None
+        
         # Notepad — survives SDK compaction (lives on this object, not in chat history)
         # Keyed by page name (e.g. "D:1", "D:2", "general")
         self._notepad: Dict[str, List[str]] = {}
@@ -493,6 +496,16 @@ class DCSSGame:
     def pray(self) -> List[str]:
         return self._act("p")
     
+    def choose_stat(self, stat: str) -> List[str]:
+        """Choose a stat to increase on level up: s=Strength, i=Intelligence, d=Dexterity."""
+        stat = stat.lower()
+        if stat not in ("s", "i", "d"):
+            return ["[ERROR: Invalid stat. Use 's' (Strength), 'i' (Intelligence), or 'd' (Dexterity).]"]
+        if self._pending_prompt != "stat_increase":
+            return ["[No stat increase prompt pending.]"]
+        self._pending_prompt = None
+        return self._act(stat, menu_ok=True)
+
     def respond(self, action: str) -> List[str]:
         """Respond to a prompt: yes (Y), no (N), or escape."""
         key_map = {"yes": "Y", "no": "N", "escape": "key_esc"}
@@ -856,6 +869,12 @@ class DCSSGame:
         if not menu_ok:
             self._actions_since_narrate += 1
         
+        # Block game actions while a prompt is pending
+        if not menu_ok and self._pending_prompt:
+            if self._pending_prompt == "stat_increase":
+                return ["[ERROR: Stat increase prompt is waiting! Call choose_stat('s'), choose_stat('i'), or choose_stat('d') to pick Strength, Intelligence, or Dexterity.]"]
+            return [f"[ERROR: A prompt is pending: {self._pending_prompt}]"]
+        
         # Block game actions while a menu/popup is open
         if not menu_ok and self._current_menu:
             title = self._current_menu.get("title", "a menu")
@@ -900,14 +919,12 @@ class DCSSGame:
                         self._ws.send_key(" ")
                     elif mode == 7:
                         # Text input prompt — check if it's a stat increase
-                        # Look for "(S)trength" pattern in recent messages
                         recent = self._messages[-5:] if self._messages else []
                         stat_prompt = any("(S)trength" in m for m in recent)
                         if stat_prompt:
-                            # Auto-pick Strength for melee, Intelligence for casters
-                            # TODO: let AI choose via a tool
-                            logger.info(f"Stat increase prompt, auto-picking S (keys={keys})")
-                            self._ws.send_key("s")
+                            self._pending_prompt = "stat_increase"
+                            logger.info(f"Stat increase prompt detected (keys={keys})")
+                            got_input = True  # return to AI so it can choose
                         else:
                             logger.info(f"Text input prompt during _act, escaping (keys={keys})")
                             self._ws.send_key("key_esc")
