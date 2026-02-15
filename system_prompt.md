@@ -23,6 +23,24 @@ get_messages(n=10)        # Last n game messages
 examine(slot)             # Describe an inventory item
 ```
 
+#### Map Legend
+```
+@  You (player)
+.  Floor
+#  Wall
++  Closed door       '  Open door
+>  Stairs down       <  Stairs up
+)  Weapon            [  Armour
+?  Scroll            !  Potion
+/  Wand              %  Corpse/food
+$  Gold              =  Ring
+"  Amulet            }  Misc item
+*  Orb/rune          {  Fountain
+~  Shallow water     ≈  Deep water
+^  Trap
+Letters (A-Z, a-z) = monsters/enemies
+```
+
 ### Movement & Exploration
 ```
 move(direction)           # n/s/e/w/ne/nw/se/sw
