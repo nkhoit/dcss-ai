@@ -332,7 +332,12 @@ class DCSSGame:
         return self._act(">")
     
     def pickup(self) -> List[str]:
-        return self._act("g")
+        # ',' auto-grabs single item or opens selection menu for multiple
+        # If menu opens, ',' again selects all, then Enter confirms
+        msgs = self._act(",")
+        self._act(",")  # select all in menu (no-op if no menu)
+        self._act("key_enter")  # confirm (no-op if no menu)
+        return msgs
     
     def use_ability(self, key: str) -> List[str]:
         """Use ability: a=Berserk, b=Trog's Hand, c=Brothers in Arms."""
