@@ -84,7 +84,7 @@ class DCSSDriver:
 
         # Track tool activity to detect hangs
         SILENT_TIMEOUT = 60  # seconds — no output at all = truly stuck
-        MAX_RETRIES = 3     # consecutive timeouts before giving up
+        MAX_RETRIES = 5     # consecutive timeouts before abandoning THIS game
 
         kickoff_prompt = (
             "Start a new DCSS game. Call new_attempt() first, then start_game(). "
@@ -138,7 +138,6 @@ class DCSSDriver:
                         elapsed_since_delta = _time.time() - session.last_delta_time
                         
                         if elapsed_since_delta > SILENT_TIMEOUT:
-                            # No output at all — truly stuck
                             retries += 1
                             self.logger.warning(
                                 f"LLM silent — no output for {elapsed_since_delta:.0f}s "
@@ -146,7 +145,6 @@ class DCSSDriver:
                             )
                             prompt = continue_prompt
                         elif elapsed_since_tool > SILENT_TIMEOUT:
-                            # Narrating but never calling tools
                             retries += 1
                             self.logger.warning(
                                 f"LLM narrating without tool calls for {elapsed_since_tool:.0f}s "
@@ -154,8 +152,7 @@ class DCSSDriver:
                             )
                             prompt = continue_prompt
                         else:
-                            # Tool calls happened but send didn't finish
-                            # — game is still going, just long-running
+                            # Tool calls happened — it's playing, reset retries
                             retries = 0
                             self.logger.info("Game still in progress, continuing...")
                             prompt = continue_prompt
@@ -163,13 +160,15 @@ class DCSSDriver:
                 except Exception as e:
                     self.logger.error(f"Error during LLM interaction: {e}")
                     retries += 1
-                    if retries < MAX_RETRIES:
-                        prompt = continue_prompt
-                    else:
-                        break
+                    prompt = continue_prompt
 
             if retries >= MAX_RETRIES:
-                self.logger.error(f"LLM hung {MAX_RETRIES} times in a row, abandoning game")
+                self.logger.warning(f"Stuck after {MAX_RETRIES} retries, abandoning THIS game (will start a new one)")
+                # Try to cleanly quit the stuck game
+                try:
+                    self.dcss.quit_game()
+                except Exception:
+                    pass
 
             self.logger.info(f"Game session ended. Deaths: {self.dcss._deaths}, Wins: {self.dcss._wins}")
 
