@@ -54,12 +54,15 @@ class DCSSDriver:
 
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
+        self._loop = None
 
     def _signal_handler(self, signum, frame):
         self.logger.info(f"Received signal {signum}, shutting down after current action...")
         self.running = False
-        # Raise KeyboardInterrupt to break out of blocking awaits
-        raise KeyboardInterrupt
+        # Cancel all running tasks to break out of blocking awaits
+        if self._loop:
+            for task in asyncio.all_tasks(self._loop):
+                task.cancel()
 
     async def connect_to_dcss(self) -> bool:
         """Connect to DCSS server."""
@@ -193,6 +196,7 @@ class DCSSDriver:
 
     async def run_forever(self):
         """Main loop - runs games forever until interrupted."""
+        self._loop = asyncio.get_running_loop()
         self.logger.info("Starting DCSS AI Driver")
 
         # Initialize LLM provider
@@ -227,7 +231,7 @@ class DCSSDriver:
                         self.logger.info("Starting next game in 5 seconds...")
                         await asyncio.sleep(5)
 
-                except KeyboardInterrupt:
+                except (KeyboardInterrupt, asyncio.CancelledError):
                     break
                 except Exception as e:
                     self.logger.error(f"Error in game loop: {e}")
@@ -240,7 +244,7 @@ class DCSSDriver:
                     self.logger.warning("DCSS connection lost, reconnecting...")
                     await self.connect_to_dcss()
 
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, asyncio.CancelledError):
             pass
 
         # --- Session summary ---
