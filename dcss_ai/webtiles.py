@@ -4,10 +4,13 @@ Replaces the dcss_api Rust library to avoid GIL-blocking issues with read_until(
 """
 
 import json
+import logging
 import zlib
 import time
 import re
 import threading
+
+logger = logging.getLogger(__name__)
 from typing import List, Dict, Any, Tuple, Optional
 from collections import deque
 import websockets.sync.client
@@ -83,7 +86,11 @@ class WebTilesConnection:
     def _send(self, data: dict) -> None:
         if not self._ws:
             raise RuntimeError("Not connected")
-        self._ws.send(json.dumps(data))
+        try:
+            self._ws.send(json.dumps(data))
+        except websockets.exceptions.ConnectionClosed as e:
+            logger.error(f"WebSocket connection closed during send: {e}")
+            raise
         self._last_msg_time = time.time()
     
     def recv_messages(self, timeout: float = 0.1) -> List[dict]:
@@ -105,7 +112,8 @@ class WebTilesConnection:
                 raw = self._ws.recv(timeout=max(0.01, remaining))
             except TimeoutError:
                 break
-            except websockets.exceptions.ConnectionClosed:
+            except websockets.exceptions.ConnectionClosed as e:
+                logger.error(f"WebSocket connection closed during recv: {e}")
                 break
             
             msgs = self._decode(raw)

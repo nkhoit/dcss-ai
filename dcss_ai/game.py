@@ -524,11 +524,15 @@ class DCSSGame:
                 break
             msgs = self._ws.recv_messages(timeout=min(0.5, remaining))
             
+            if not msgs and remaining < 1.0:
+                logger.warning(f"_act timeout approaching, keys={keys}, got_input={got_input}, got_player={got_player}")
+            
             for msg in msgs:
                 self._process_msg(msg)
                 mt = msg.get("msg")
                 if mt == "input_mode":
                     mode = msg.get("mode")
+                    logger.debug(f"input_mode={mode} (keys={keys})")
                     if mode == 1:
                         got_input = True
                     elif mode == 5:
@@ -536,18 +540,18 @@ class DCSSGame:
                         self._ws.send_key(" ")
                     elif mode == 7:
                         # Text input prompt (e.g. "Really quit?", "Call which ally?")
-                        # Escape out of it — the AI shouldn't be in text input during _act
+                        logger.info(f"Text input prompt during _act, escaping (keys={keys})")
                         self._ws.send_key("key_esc")
                     elif mode == 0:
                         # Travelling/auto-explore in progress — wait for it
                         pass
                     else:
-                        # Unknown menu/mode (spell list, inventory view, etc.) — escape out
-                        logger.debug(f"Auto-escaping unknown input_mode={mode}")
+                        logger.info(f"Unknown input_mode={mode}, escaping (keys={keys})")
                         self._ws.send_key("key_esc")
                 elif mt == "player":
                     got_player = True
                 elif mt == "close":
+                    logger.info(f"Game closed (death). keys={keys}")
                     self._is_dead = True
                     self._in_game = False
             
@@ -561,6 +565,9 @@ class DCSSGame:
                 for msg in extra:
                     self._process_msg(msg)
                 break
+        
+        if not got_input and not self._is_dead:
+            logger.warning(f"_act finished without input_mode=1! keys={keys}, timeout={timeout}")
         
         return self._messages[msg_start:]
     
