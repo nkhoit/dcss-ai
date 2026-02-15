@@ -26,7 +26,7 @@ def main():
         return 1
 
     print("Starting game (Minotaur Berserker)...")
-    result = dcss.start_game("r", "a")
+    result = dcss.start_game("b", "f")
     print(f"  start_game: {result[:200]}...")
 
     # Test 1: read_ui with nothing open
