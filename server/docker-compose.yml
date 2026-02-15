@@ -1,6 +1,6 @@
 services:
   dcss:
-    image: frozenfoxx/crawl:latest
+    image: ghcr.io/nkhoit/dcss-webtiles:latest
     container_name: dcss-webtiles
     ports:
       - "8080:8080"
