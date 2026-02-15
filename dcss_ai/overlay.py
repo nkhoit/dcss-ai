@@ -100,7 +100,7 @@ async def _handle_sse(reader, writer):
             writer.close()
     elif path == "/" or path.startswith("/stream") or path.startswith("/overlay"):
         # Serve static files from dcss-stream directory
-        static_dir = os.environ.get("DCSS_STREAM_DIR", os.path.expanduser("~/code/dcss-stream"))
+        static_dir = os.environ.get("DCSS_STREAM_DIR", os.path.join(os.path.dirname(os.path.dirname(__file__)), "overlay"))
         filename = "stream.html" if path in ("/", "/stream") else path.lstrip("/")
         filepath = os.path.join(static_dir, filename)
         try:
