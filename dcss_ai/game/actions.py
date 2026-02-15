@@ -36,7 +36,13 @@ class GameActions:
         turn_before = self._turn
         result = self._act("o")
         if self._turn == turn_before:
-            result.append("[Floor fully explored. Call go_downstairs() to auto-travel to the nearest downstairs and descend.]")
+            # Check if explore was interrupted by an enemy vs floor being done
+            enemies = self.get_nearby_enemies()
+            recent = " ".join(result).lower()
+            if enemies or "is nearby" in recent or "comes into view" in recent:
+                result.append("[Explore interrupted by enemy.]")
+            else:
+                result.append("[Floor fully explored. Call go_downstairs() to auto-travel to the nearest downstairs and descend.]")
         return result
 
     def auto_fight(self) -> List[str]:
