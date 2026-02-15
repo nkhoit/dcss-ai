@@ -438,10 +438,12 @@ class DCSSGame:
     
     def examine(self, slot: str) -> List[str]:
         """Examine/describe an inventory item by slot letter."""
-        # Open inventory, select item to see description, then dismiss
-        msgs = self._act("i", slot)
-        self._act("key_esc")  # close description screen
-        return msgs
+        # Return what we know from cached inventory data
+        inv = self.get_inventory()
+        for item in inv:
+            if item.get("slot") == slot:
+                return [f"{slot} - {item.get('name', 'unknown')} (qty: {item.get('quantity', 1)})"]
+        return [f"No item in slot '{slot}'."]
 
     # --- Overlay / Stats ---
 
@@ -554,6 +556,10 @@ class DCSSGame:
                     logger.info(f"Game closed (death). keys={keys}")
                     self._is_dead = True
                     self._in_game = False
+                elif mt in ("ui-push", "ui-state"):
+                    # UI overlay (inventory screen, description, etc.) — escape it
+                    logger.debug(f"UI overlay ({mt}) during _act, escaping (keys={keys})")
+                    self._ws.send_key("key_esc")
             
             # Exit once we have both input_mode=1 AND a player update
             # (or just input_mode=1 if player came in same batch)
