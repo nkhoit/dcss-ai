@@ -430,6 +430,8 @@ class DCSSDriver:
             self.logger.info(f"Starting game session (attempt #{self.dcss._attempt + 1})")
             prompt = kickoff_prompt
             retries = 0
+            deaths_before = self.dcss._deaths
+            wins_before = self.dcss._wins
 
             while self.running and retries < MAX_RETRIES:
                 last_tool_call[0] = _time.time()
@@ -443,6 +445,11 @@ class DCSSDriver:
                     # Normal completion — game ended
                     break
                 except asyncio.TimeoutError:
+                    # Check if a game ended during this turn
+                    if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
+                        self.logger.info("Game ended (death/win detected), ending session")
+                        break
+
                     elapsed = _time.time() - last_tool_call[0]
                     if elapsed > TURN_TIMEOUT * 0.8:
                         # No tool calls during the timeout — SDK is hung
