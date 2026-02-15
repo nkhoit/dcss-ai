@@ -130,7 +130,7 @@ dcss-ai/
 │   ├── game_state.md      # Active game state (updated during play)
 │   └── learnings.md       # Persistent knowledge from past games
 ├── server/
-│   └── docker-compose.yml # DCSS webtiles server (frozenfoxx/crawl)
+│   └── docker-compose.yml # DCSS webtiles server (nkhoit/dcss-webtiles)
 └── requirements.txt
 ```
 
@@ -138,5 +138,5 @@ dcss-ai/
 
 - [DCSS](https://github.com/crawl/crawl) — Dungeon Crawl Stone Soup
 - [GitHub Copilot SDK](https://github.com/github/copilot-sdk) — LLM agent framework
-- [frozenfoxx/crawl](https://hub.docker.com/r/frozenfoxx/crawl) — Docker image
+- [nkhoit/dcss-webtiles](https://github.com/nkhoit/dcss-webtiles) — Docker image
 - [dcss-api](https://github.com/EricFecteau/dcss-api) — Reference for the webtiles protocol
