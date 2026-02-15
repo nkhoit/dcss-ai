@@ -84,6 +84,10 @@ class CopilotSession(LLMSession):
         # Clear monologue for new session
         clear_monologue()
         
+        # Activity tracking
+        self.last_delta_time = time.time()
+        self.last_tool_time = time.time()
+        
         # Set up event handling
         self.session.on(self._handle_event)
     
@@ -93,6 +97,7 @@ class CopilotSession(LLMSession):
             content = event.data.delta_content
             if content:
                 self._current_message.append(content)
+                self.last_delta_time = time.time()
                 # Still stream to stdout for logs
                 if content.strip():
                     sys.stdout.write(content)
@@ -113,17 +118,43 @@ class CopilotSession(LLMSession):
             self.usage_totals["premium_requests"] += int(d.cost or 0)
             self.usage_totals["api_calls"] += 1
             self.usage_totals["total_duration_ms"] += int(d.duration or 0)
+        elif event.type == SessionEventType.TOOL_EXECUTION_START:
+            self.last_tool_time = time.time()
     
     async def send(self, message: str, timeout: float = 120) -> SessionResult:
-        """Send message and wait for completion."""
+        """Send message and wait for completion.
+        
+        Uses adaptive timeout: resets when activity (deltas/tools) is detected.
+        Only fires when the model goes completely silent.
+        """
         try:
-            await asyncio.wait_for(
-                self.session.send_and_wait({"prompt": message}, timeout=7200),
-                timeout=timeout
+            task = asyncio.ensure_future(
+                self.session.send_and_wait({"prompt": message}, timeout=7200)
             )
+            
+            # Poll until task completes or model goes silent
+            silent_limit = 60  # seconds of no output = stuck
+            while not task.done():
+                await asyncio.sleep(1)
+                since_delta = time.time() - self.last_delta_time
+                since_tool = time.time() - self.last_tool_time
+                last_activity = min(since_delta, since_tool)
+                
+                if last_activity > silent_limit:
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+                    return SessionResult(
+                        completed=False,
+                        text="",
+                        usage=self.usage_totals.copy()
+                    )
+            
             return SessionResult(
                 completed=True,
-                text="",  # Text is streamed to stdout
+                text="",
                 usage=self.usage_totals.copy()
             )
         except asyncio.TimeoutError:

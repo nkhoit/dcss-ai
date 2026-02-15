@@ -83,9 +83,7 @@ class DCSSDriver:
         session = await self.provider.create_session(system_prompt, tools, self.args.model)
 
         # Track tool activity to detect hangs
-        last_tool_call = [0.0]  # mutable ref for closure
-
-        TURN_TIMEOUT = 300  # seconds — max time to wait for a tool call
+        SILENT_TIMEOUT = 60  # seconds — no output at all = truly stuck
         MAX_RETRIES = 3     # consecutive timeouts before giving up
 
         kickoff_prompt = (
@@ -95,7 +93,7 @@ class DCSSDriver:
         )
 
         continue_prompt = (
-            "You MUST call a tool now. You went 5 minutes without "
+            "You MUST call a tool now. You went silent without "
             "calling any tool. Call get_state_text() to check the game, then take an action. "
             "Do NOT just narrate — every response needs a tool call. "
             "If the game is over, call record_death() or record_win()."
@@ -110,11 +108,12 @@ class DCSSDriver:
             wins_before = self.dcss._wins
 
             while self.running and retries < MAX_RETRIES:
-                last_tool_call[0] = _time.time()
+                session.last_tool_time = _time.time()
+                session.last_delta_time = _time.time()
                 self.logger.info("Sending prompt to LLM...")
 
                 try:
-                    result = await session.send(prompt, timeout=TURN_TIMEOUT)
+                    result = await session.send(prompt)
                     
                     if result.completed:
                         # Normal completion — game ended
@@ -135,12 +134,22 @@ class DCSSDriver:
                             self.logger.info("Game ended (death/win detected), ending session")
                             break
 
-                        elapsed = _time.time() - last_tool_call[0]
-                        if elapsed > TURN_TIMEOUT * 0.8:
-                            # No tool calls during the timeout — LLM is hung
+                        elapsed_since_tool = _time.time() - session.last_tool_time
+                        elapsed_since_delta = _time.time() - session.last_delta_time
+                        
+                        if elapsed_since_delta > SILENT_TIMEOUT:
+                            # No output at all — truly stuck
                             retries += 1
                             self.logger.warning(
-                                f"LLM hung — no tool calls for {elapsed:.0f}s "
+                                f"LLM silent — no output for {elapsed_since_delta:.0f}s "
+                                f"(retry {retries}/{MAX_RETRIES})"
+                            )
+                            prompt = continue_prompt
+                        elif elapsed_since_tool > SILENT_TIMEOUT:
+                            # Narrating but never calling tools
+                            retries += 1
+                            self.logger.warning(
+                                f"LLM narrating without tool calls for {elapsed_since_tool:.0f}s "
                                 f"(retry {retries}/{MAX_RETRIES})"
                             )
                             prompt = continue_prompt
