@@ -470,10 +470,13 @@ class DCSSGame:
         return self._act("a", key)
     
     def cast_spell(self, key: str, direction: str = "") -> List[str]:
-        keys = ["z", key]
+        """Cast a spell. Direction is optional — some spells auto-target or are self-targeted.
+        If the spell needs targeting, DCSS will prompt; if no direction given, confirms with '.'"""
         if direction:
-            keys.append(self._dir_key(direction))
-        return self._act(*keys)
+            return self._act("z", key, self._dir_key(direction))
+        else:
+            # Self-targeted or auto-targeted: confirm with '.'
+            return self._act("z", key, ".")
     
     def _dir_key(self, direction: str) -> str:
         """Convert direction string to DCSS key."""
@@ -975,7 +978,13 @@ class DCSSGame:
         if not got_input and not self._is_dead:
             logger.warning(f"_act finished without input_mode=1! keys={keys}, timeout={timeout}")
         
-        return self._messages[msg_start:]
+        new_msgs = self._messages[msg_start:]
+        
+        # Flag unknown commands so AI can learn
+        if any("Unknown command" in m for m in new_msgs):
+            new_msgs.append("[HINT: 'Unknown command' means a key you sent was invalid in this context. Check if you're sending the right arguments.]")
+        
+        return new_msgs
     
     def _process_msg(self, msg: dict):
         """Route a message to the appropriate handler."""
