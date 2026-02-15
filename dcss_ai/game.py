@@ -854,6 +854,8 @@ class DCSSGame:
 
     def record_death(self, cause: str = ""):
         """Call when the character dies. Increments death counter."""
+        if not self._is_dead:
+            return "You're not dead! HP: {}/{}. Keep playing.".format(self._hp, self._max_hp)
         self._deaths += 1
         self._session_ended = True
         self.update_overlay(f"Died: {cause}" if cause else "Died.")
