@@ -268,8 +268,10 @@ class WebTilesConnection:
                 if msg.get("msg") == "init_input":
                     got_text_prompt = True
             if got_text_prompt:
-                # Confirm with "yes"
-                self.send_key("yes")
+                # Confirm with "quit" (0.34+) or "yes" (older)
+                for ch in "quit":
+                    self.send_key(ch)
+                    import time as _t; _t.sleep(0.05)
                 self.send_key("key_enter")
                 break
         
