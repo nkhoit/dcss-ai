@@ -390,8 +390,10 @@ class DCSSDriver:
 
         def handle_event(event):
             if event.type == SessionEventType.ASSISTANT_MESSAGE_DELTA:
-                sys.stdout.write(event.data.delta_content)
-                sys.stdout.flush()
+                content = event.data.delta_content
+                if content and content.strip():
+                    sys.stdout.write(content)
+                    sys.stdout.flush()
             elif event.type == SessionEventType.ASSISTANT_MESSAGE:
                 sys.stdout.write("\n")
                 sys.stdout.flush()
