@@ -243,28 +243,35 @@ class WebTilesConnection:
         for _ in range(3):
             self.send_key("key_esc")
             time.sleep(0.1)
-        self.recv_messages(timeout=0.5)  # drain
+        self.recv_messages(timeout=0.3)  # drain
         
-        # Send Ctrl+Q to trigger "Really quit?" prompt
+        # Send Ctrl+Q
         self.send_key("key_ctrl_q")
-        time.sleep(0.5)
-        self.recv_messages(timeout=0.5)  # drain prompt
         
-        # Type "yes" as individual characters then Enter
-        for ch in "yes":
-            self.send_key(ch)
-            time.sleep(0.05)
-        self.send_key("key_enter")
-        time.sleep(0.5)
+        # Wait for response — either input_mode=7 (instant quit) or text prompt
+        for _ in range(10):
+            msgs = self.recv_messages(timeout=1.0)
+            got_quit = False
+            for msg in msgs:
+                if msg.get("msg") == "go_lobby":
+                    return
+                if msg.get("msg") == "input_mode" and msg.get("mode") == 7:
+                    got_quit = True
+            if got_quit:
+                break
+            # Confirm the "Really quit?" prompt
+            self.send_key("yes")
+            self.send_key("key_enter")
+            time.sleep(0.3)
+            break
         
-        # Wait for lobby
+        # Escape through post-quit screens until lobby
         for _ in range(10):
             msgs = self.recv_messages(timeout=0.5)
             for msg in msgs:
                 if msg.get("msg") == "go_lobby":
                     return
-            if not msgs:
-                break
+            self.send_key("key_esc")
     
     def save_game(self) -> None:
         """Save and exit to lobby (Ctrl-S)."""
