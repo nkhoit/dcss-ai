@@ -61,6 +61,7 @@ class DCSSGame:
         self._messages: List[str] = []
         self._map_cells: Dict[Tuple[int, int], str] = {}
         self._monsters: Dict[Tuple[int, int], Dict[str, Any]] = {}
+        self._monster_names: Dict[int, str] = {}  # id -> name cache
     
     # --- Connection/lifecycle ---
     
@@ -613,7 +614,17 @@ class DCSSGame:
                     self._map_cells[(cur_x, cur_y)] = cell["g"]
                 if "mon" in cell:
                     if cell["mon"]:
-                        self._monsters[(cur_x, cur_y)] = cell["mon"]
+                        mon_data = cell["mon"]
+                        mon_id = mon_data.get("id")
+                        # Cache name when we first see it
+                        if "name" in mon_data and mon_id is not None:
+                            self._monster_names[mon_id] = mon_data["name"]
+                        # Merge with existing + inject cached name
+                        existing = self._monsters.get((cur_x, cur_y), {})
+                        existing.update(mon_data)
+                        if "name" not in existing and mon_id in self._monster_names:
+                            existing["name"] = self._monster_names[mon_id]
+                        self._monsters[(cur_x, cur_y)] = existing
                     elif (cur_x, cur_y) in self._monsters:
                         del self._monsters[(cur_x, cur_y)]
                 cur_x += 1
