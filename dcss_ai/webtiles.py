@@ -239,6 +239,11 @@ class WebTilesConnection:
     
     def quit_game(self) -> None:
         """Quit current game (Ctrl-Q + confirm)."""
+        # Escape any open menus/prompts first
+        for _ in range(3):
+            self.send_key("key_esc")
+            time.sleep(0.1)
+        
         self.send_key("key_ctrl_q")
         time.sleep(0.3)
         # Drain to see what prompt we get
