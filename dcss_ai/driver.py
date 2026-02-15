@@ -50,6 +50,9 @@ class DCSSDriver:
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[logging.StreamHandler(sys.stdout)]
         )
+        # Silence noisy third-party loggers even in debug mode
+        logging.getLogger("websockets").setLevel(logging.INFO)
+        logging.getLogger("copilot").setLevel(logging.INFO)
         self.logger = logging.getLogger(__name__)
 
         signal.signal(signal.SIGINT, self._signal_handler)
