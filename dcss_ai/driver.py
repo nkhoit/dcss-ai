@@ -351,7 +351,7 @@ class DCSSDriver:
 
     def load_system_prompt(self) -> str:
         """Load system prompt from file and append learnings."""
-        prompt_path = Path(__file__).parent / "system_prompt.md"
+        prompt_path = Path(__file__).parent.parent / "system_prompt.md"
         with open(prompt_path, 'r') as f:
             system_prompt = f.read()
 
