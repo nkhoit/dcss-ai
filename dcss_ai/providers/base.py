@@ -2,40 +2,26 @@
 """Abstract base classes for LLM providers."""
 
 import json
-import os
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
 from dcss_ai.overlay import send_thought, send_reset
 
 
-# Monologue file path — legacy fallback
-MONOLOGUE_PATH = os.environ.get(
-    "DCSS_MONOLOGUE_PATH",
-    str(Path(__file__).parent.parent.parent / "monologue.jsonl"),
-)
-
-
-def write_monologue(text: str, path: str = MONOLOGUE_PATH) -> None:
-    """Push a thought to connected overlays and append to file as fallback."""
+def write_monologue(text: str) -> None:
+    """Push a thought to connected overlays via SSE."""
     text = text.strip()
     if not text:
         return
     send_thought(text)
-    entry = {"ts": time.time(), "text": text}
-    with open(path, "a") as f:
-        f.write(json.dumps(entry) + "\n")
 
 
-def clear_monologue(path: str = MONOLOGUE_PATH) -> None:
-    """Signal overlays to reset and clear the monologue file."""
+def clear_monologue() -> None:
+    """Signal overlays to reset their feed."""
     send_reset()
-    with open(path, "w") as f:
-        pass
 
 
 @dataclass
