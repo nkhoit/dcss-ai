@@ -227,6 +227,11 @@ class DCSSDriver:
         self._loop = asyncio.get_running_loop()
         self.logger.info("Starting DCSS AI Driver")
 
+        # Start overlay SSE server
+        from dcss_ai.overlay import start_server as start_sse
+        sse_port = self.config.get("overlay_port", 8889)
+        sse_server = await start_sse(sse_port)
+
         # Initialize LLM provider
         self.provider = get_provider(self.config["provider"], 
                                       base_url=self.config.get("base_url"),

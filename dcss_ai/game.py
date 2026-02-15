@@ -6,6 +6,7 @@ import re
 import time
 from typing import Optional, List, Dict, Tuple, Any
 from dcss_ai.webtiles import WebTilesConnection
+from dcss_ai.overlay import send_stats, send_thought, send_reset
 
 logger = logging.getLogger(__name__)
 
@@ -821,10 +822,10 @@ class DCSSGame:
         return text.strip()
 
     def update_overlay(self, thought: str = ""):
-        """Write current game state + thought to the stream overlay stats file.
+        """Push current game state to connected overlays via SSE.
         
+        Also writes to stats file as fallback.
         Call this after significant events: each action, level changes, death, win.
-        The overlay HTML polls this file every 2 seconds.
         """
         character = f"{self._species} {self._title}".strip() if self._species else "—"
         data = {
@@ -838,6 +839,10 @@ class DCSSGame:
             "thought": thought,
             "status": "Dead" if self._is_dead else "Playing",
         }
+        send_stats(data)
+        if thought:
+            send_thought(thought)
+        # Fallback: write stats file
         try:
             os.makedirs(os.path.dirname(self._stats_path), exist_ok=True)
             with open(self._stats_path, "w") as f:

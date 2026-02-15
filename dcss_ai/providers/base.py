@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
-# Monologue file path — overlay reads this
+from dcss_ai.overlay import send_thought, send_reset
+
+
+# Monologue file path — legacy fallback
 MONOLOGUE_PATH = os.environ.get(
     "DCSS_MONOLOGUE_PATH",
     str(Path(__file__).parent.parent.parent / "monologue.jsonl"),
@@ -18,17 +21,19 @@ MONOLOGUE_PATH = os.environ.get(
 
 
 def write_monologue(text: str, path: str = MONOLOGUE_PATH) -> None:
-    """Append a thought to the monologue file."""
+    """Push a thought to connected overlays and append to file as fallback."""
     text = text.strip()
     if not text:
         return
+    send_thought(text)
     entry = {"ts": time.time(), "text": text}
     with open(path, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
 
 def clear_monologue(path: str = MONOLOGUE_PATH) -> None:
-    """Clear the monologue file (call at session start)."""
+    """Signal overlays to reset and clear the monologue file."""
+    send_reset()
     with open(path, "w") as f:
         pass
 

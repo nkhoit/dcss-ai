@@ -29,6 +29,9 @@ DEFAULTS = {
 
     # Debug
     "debug": False,         # enable DEBUG-level logging (tool calls, etc.)
+
+    # Overlay
+    "overlay_port": 8889,   # SSE server port for stream overlay
 }
 
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"
