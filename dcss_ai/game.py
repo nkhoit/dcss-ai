@@ -448,7 +448,10 @@ class DCSSGame:
     
     def pickup(self) -> List[str]:
         """Pick up items at current position. Uses comma to auto-grab all."""
-        return self._act(",")
+        msgs = self._act(",")
+        if self._current_menu:
+            msgs.append("[A pickup menu opened — use read_ui() to see items, select_menu_item() to pick specific items, or dismiss() to cancel]")
+        return msgs
     
     def use_ability(self, key: str) -> List[str]:
         """Use ability: a=Berserk, b=Trog's Hand, c=Brothers in Arms."""
