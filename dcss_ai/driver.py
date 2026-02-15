@@ -392,6 +392,8 @@ class DCSSDriver:
                 sys.stdout.flush()
             elif event.type in (SessionEventType.TOOL_EXECUTION_START, SessionEventType.TOOL_EXECUTION_COMPLETE):
                 last_tool_call[0] = _time.time()
+            elif event.type in (SessionEventType.ASSISTANT_USAGE, SessionEventType.SESSION_USAGE_INFO):
+                self.logger.info(f"Usage event ({event.type.name}): {event.data}")
 
         session.on(handle_event)
 
