@@ -497,10 +497,10 @@ class DCSSGame:
         """Respond to a prompt: yes (Y), no (N), or escape."""
         key_map = {"yes": "Y", "no": "N", "escape": "key_esc"}
         key = key_map.get(action.lower(), "key_esc")
-        return self._act(key)
+        return self._act(key, menu_ok=True)
 
     def escape(self) -> List[str]:
-        return self._act("key_esc")
+        return self._act("key_esc", menu_ok=True)
     
     def send_keys(self, keys: str) -> List[str]:
         """Raw key escape hatch."""
@@ -844,24 +844,23 @@ class DCSSGame:
 
     # --- Internals ---
     
-    def _act(self, *keys: str, timeout: float = 5.0) -> List[str]:
+    def _act(self, *keys: str, timeout: float = 5.0, menu_ok: bool = False) -> List[str]:
         """Send keys, wait for input_mode, return new messages."""
         if not self._ws or not self._in_game:
             return ["Not in game"]
         
         # Enforce narration — block actions if overdue
         NARRATE_INTERVAL = 5
-        if self._actions_since_narrate >= NARRATE_INTERVAL:
+        if not menu_ok and self._actions_since_narrate >= NARRATE_INTERVAL:
             return [f"[ERROR: You must call narrate() before continuing. You've taken {self._actions_since_narrate} actions without narrating for stream viewers.]"]
-        self._actions_since_narrate += 1
+        if not menu_ok:
+            self._actions_since_narrate += 1
         
         # Block game actions while a menu/popup is open
-        menu_keys = {"key_esc", " ", "key_enter"}
-        is_menu_interaction = (len(keys) == 1 and (keys[0] in menu_keys or len(keys[0]) == 1))
-        if self._current_menu and not is_menu_interaction:
+        if not menu_ok and self._current_menu:
             title = self._current_menu.get("title", "a menu")
             return [f"[ERROR: {title} is still open. Use read_ui() to see it, select_menu_item() to interact, or dismiss() to close it first.]"]
-        if self._current_popup and not is_menu_interaction:
+        if not menu_ok and self._current_popup:
             return ["[ERROR: A popup is still open. Use read_ui() to see it or dismiss() to close it first.]"]
         
         msg_start = len(self._messages)
