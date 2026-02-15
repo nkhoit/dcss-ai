@@ -69,6 +69,16 @@ class DCSSDriver:
         if self._active_session and hasattr(self._active_session, '_shutdown'):
             self._active_session._shutdown = True
 
+    def _check_consolidation(self):
+        """Check if it's time to recommend learning consolidation."""
+        import re
+        learnings_path = Path(__file__).parent.parent / "learnings.md"
+        if learnings_path.exists():
+            content = learnings_path.read_text()
+            death_count = len(re.findall(r'### Death #\d+', content))
+            if death_count > 0 and death_count % 10 == 0:
+                self.logger.info(f"Consolidation recommended after {death_count} deaths")
+
     async def connect_to_dcss(self) -> bool:
         """Connect to DCSS server."""
         try:
@@ -140,6 +150,9 @@ class DCSSDriver:
                         # SDK thinks it's done — but check if the game actually ended
                         if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
                             self.logger.info("Session completed — game ended (death/win)")
+                            # Consolidation trigger
+                            if self.dcss._deaths > deaths_before:
+                                self._check_consolidation()
                             self.logger.info(
                                 f"Session usage: {result.usage.get('api_calls', 0)} API calls, "
                                 f"{result.usage.get('input_tokens', 0):,} input tokens, "
@@ -172,6 +185,8 @@ class DCSSDriver:
                         # Check if a game ended during this turn
                         if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
                             self.logger.info("Game ended (death/win detected), ending session")
+                            if self.dcss._deaths > deaths_before:
+                                self._check_consolidation()
                             break
 
                         elapsed_since_tool = _time.time() - session.last_tool_time
