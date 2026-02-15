@@ -2,6 +2,7 @@
 """Copilot SDK provider implementation."""
 
 import asyncio
+import logging
 import sys
 import time
 from typing import Any, Dict, List, Optional
@@ -166,7 +167,7 @@ class CopilotSession(LLMSession):
                 last_activity = min(since_delta, since_tool)
                 
                 if last_activity > silent_limit:
-                    import logging
+
                     logging.getLogger("dcss_ai").warning(
                         f"SDK silent for {last_activity:.0f}s "
                         f"(delta={since_delta:.0f}s, tool={since_tool:.0f}s), cancelling"
@@ -199,7 +200,7 @@ class CopilotSession(LLMSession):
             )
         except Exception as e:
             # API errors (missing finish_reason, etc.) — treat as non-fatal timeout
-            import logging
+
             logging.getLogger("dcss_ai").warning(f"SDK error (will retry): {e}")
             return SessionResult(
                 completed=False,
