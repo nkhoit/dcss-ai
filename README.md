@@ -122,16 +122,6 @@ The `DCSSGame` class provides a clean Python API over the DCSS webtiles protocol
 | `new_attempt()` | Increment attempt counter |
 | `record_death(cause)` / `record_win()` | Track game outcomes |
 
-## OpenClaw Skill
-
-For interactive play through an [OpenClaw](https://github.com/openclaw/openclaw) agent:
-
-```bash
-ln -s ~/code/dcss-ai/skill ~/.openclaw/workspace-main/skills/dcss-ai
-```
-
-Then tell your agent to "play DCSS" — it loads `SKILL.md` and plays through a Python REPL.
-
 ## Project Structure
 
 ```
@@ -142,12 +132,7 @@ dcss-ai/
 │   ├── webtiles.py        # Pure Python WebSocket client for DCSS protocol
 │   ├── system_prompt.md   # System prompt for the playing agent
 │   ├── sandbox.py         # Restricted Python execution (REPL mode)
-│   ├── server.py          # MCP server (experimental, for OpenClaw skill)
-│   └── main.py            # Entry point (REPL mode)
-├── skill/
-│   ├── SKILL.md           # OpenClaw skill definition
-│   ├── game_state.md      # Active game state (updated during play)
-│   └── learnings.md       # Persistent knowledge from past games
+│   └── server.py          # MCP server (experimental)
 ├── server/
 │   └── docker-compose.yml # DCSS webtiles server (nkhoit/dcss-webtiles)
 ├── tests/
