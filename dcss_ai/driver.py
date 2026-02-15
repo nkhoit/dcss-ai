@@ -416,18 +416,8 @@ class DCSSDriver:
 
         kickoff_prompt = (
             "Start a new DCSS game. Call new_attempt() first, then start_game(). "
-            "Try different species/background combos — experiment! Don't always pick "
-            "the same build. Learn what works and what doesn't. "
-            "Play the game — explore, fight, survive. "
-            "Call update_overlay() with a brief thought after every action. "
-            "Learn continuously — call write_learning() whenever you discover "
-            "something important, not just at the end. Examples: 'this enemy type "
-            "hits hard, retreat when HP < 50%', 'auto_explore is faster than manual "
-            "movement', 'potions of heal wounds saved me at 3 HP'. Think of it like "
-            "a human learning to play — note what works and what hurts as it happens. "
-            "When you die, call record_death() with the cause. "
-            "If you win, call record_win(). "
-            "Then say GAME_OVER."
+            "Try a different species/background combo than last time — experiment! "
+            "Then begin exploring. Good luck!"
         )
 
         continue_prompt = (
