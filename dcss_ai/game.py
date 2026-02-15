@@ -418,7 +418,11 @@ class DCSSGame:
         d = direction.lower()
         if d not in key_map:
             return [f"Invalid direction: {direction}. Use n/s/e/w/ne/nw/se/sw"]
-        return self._act(key_map[d])
+        pos_before = self._position
+        result = self._act(key_map[d])
+        if self._position == pos_before:
+            result.append(f"[You didn't move — there's a wall or obstacle to the {direction}. Use auto_explore() or go_downstairs() to navigate.]")
+        return result
     
     def attack(self, direction: str) -> List[str]:
         """Melee attack by moving into enemy. Use when auto_fight is blocked."""
