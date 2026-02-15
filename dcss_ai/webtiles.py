@@ -220,7 +220,7 @@ class WebTilesConnection:
         """
         self._send({"msg": "play", "game_id": game_id})
         
-        choices = [species, background, weapon]
+        choices = [c for c in [species, background, weapon] if c]  # filter empty
         choice_idx = 0
         all_msgs = []
         
@@ -237,6 +237,7 @@ class WebTilesConnection:
                     got_map = True
                 elif mt == "ui-state" and msg.get("type") == "newgame-choice" and choice_idx < len(choices):
                     # Character creation menu — send next choice
+                    logger.debug(f"Newgame choice #{choice_idx}: sending '{choices[choice_idx]}'")
                     self.send_key(choices[choice_idx])
                     choice_idx += 1
             
