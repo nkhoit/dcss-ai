@@ -297,18 +297,7 @@ def build_dcss_tools(dcss: DCSSGame) -> list:
 
     @define_tool(description="Start a new DCSS game. Default: Minotaur Berserker (species=b, bg=f, weapon=b). Abandons any existing save first.")
     def start_game(params: StartGameParams) -> str:
-        # Abandon any stale save from a previous session
-        if dcss._in_game:
-            dcss.quit_game()
-        # Try starting — if there's a save, abandon it and retry
-        try:
-            return dcss.start_game(params.species_key, params.background_key, params.weapon_key)
-        except Exception:
-            try:
-                dcss.quit_game()
-            except Exception:
-                pass
-            return dcss.start_game(params.species_key, params.background_key, params.weapon_key)
+        return dcss.start_game(params.species_key, params.background_key, params.weapon_key)
 
     return [
         get_state_text, get_map, get_inventory, get_nearby_enemies,
