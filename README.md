@@ -52,7 +52,7 @@ cd server && docker compose up -d
 # Verify: http://localhost:8080 should show the DCSS lobby
 ```
 
-### Run with Ollama (easiest)
+### Run with Ollama
 
 No API key needed — just a running [Ollama](https://ollama.com) instance:
 
