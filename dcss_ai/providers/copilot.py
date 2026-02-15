@@ -152,12 +152,25 @@ class CopilotSession(LLMSession):
                         usage=self.usage_totals.copy()
                     )
             
+            # Check if the task raised an exception
+            if task.exception():
+                raise task.exception()
+            
             return SessionResult(
                 completed=True,
                 text="",
                 usage=self.usage_totals.copy()
             )
         except asyncio.TimeoutError:
+            return SessionResult(
+                completed=False,
+                text="",
+                usage=self.usage_totals.copy()
+            )
+        except Exception as e:
+            # API errors (missing finish_reason, etc.) — treat as non-fatal timeout
+            import logging
+            logging.getLogger("dcss_ai").warning(f"SDK error (will retry): {e}")
             return SessionResult(
                 completed=False,
                 text="",
