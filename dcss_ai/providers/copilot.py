@@ -11,7 +11,7 @@ from copilot.tools import define_tool
 from copilot.generated.session_events import SessionEventType
 from pydantic import BaseModel, Field
 
-from .base import LLMProvider, LLMSession, SessionResult
+from .base import LLMProvider, LLMSession, SessionResult, write_monologue, clear_monologue
 
 
 def _create_pydantic_model(tool_def: Dict[str, Any]) -> type:
@@ -79,6 +79,10 @@ class CopilotSession(LLMSession):
             "cache_write_tokens": 0, "premium_requests": 0, "api_calls": 0,
             "total_duration_ms": 0
         }
+        self._current_message = []  # accumulate deltas
+        
+        # Clear monologue for new session
+        clear_monologue()
         
         # Set up event handling
         self.session.on(self._handle_event)
@@ -87,13 +91,17 @@ class CopilotSession(LLMSession):
         """Handle Copilot session events."""
         if event.type == SessionEventType.ASSISTANT_MESSAGE_DELTA:
             content = event.data.delta_content
-            if content and content.strip():
-                # Collapse multiple newlines to single
-                import re
-                content = re.sub(r'\n{2,}', '\n', content)
-                sys.stdout.write(content)
-                sys.stdout.flush()
+            if content:
+                self._current_message.append(content)
+                # Still stream to stdout for logs
+                if content.strip():
+                    sys.stdout.write(content)
+                    sys.stdout.flush()
         elif event.type == SessionEventType.ASSISTANT_MESSAGE:
+            # Complete message — write to monologue
+            full_text = "".join(self._current_message)
+            self._current_message = []
+            write_monologue(full_text)
             sys.stdout.write("\n")
             sys.stdout.flush()
         elif event.type == SessionEventType.ASSISTANT_USAGE:

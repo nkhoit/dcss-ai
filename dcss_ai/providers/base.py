@@ -1,9 +1,36 @@
 #!/usr/bin/env python3
 """Abstract base classes for LLM providers."""
 
+import json
+import os
+import time
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+
+# Monologue file path — overlay reads this
+MONOLOGUE_PATH = os.environ.get(
+    "DCSS_MONOLOGUE_PATH",
+    str(Path(__file__).parent.parent.parent / "monologue.jsonl"),
+)
+
+
+def write_monologue(text: str, path: str = MONOLOGUE_PATH) -> None:
+    """Append a thought to the monologue file."""
+    text = text.strip()
+    if not text:
+        return
+    entry = {"ts": time.time(), "text": text}
+    with open(path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def clear_monologue(path: str = MONOLOGUE_PATH) -> None:
+    """Clear the monologue file (call at session start)."""
+    with open(path, "w") as f:
+        pass
 
 
 @dataclass
@@ -19,15 +46,7 @@ class LLMSession(ABC):
     
     @abstractmethod
     async def send(self, message: str, timeout: float = 120) -> SessionResult:
-        """Send a message to the LLM and get a response.
-        
-        Args:
-            message: The message to send
-            timeout: Maximum time to wait for a response
-            
-        Returns:
-            SessionResult with completion status, response text, and usage stats
-        """
+        """Send a message to the LLM and get a response."""
         pass
 
 
@@ -46,14 +65,5 @@ class LLMProvider(ABC):
     
     @abstractmethod
     async def create_session(self, system_prompt: str, tools: List[Dict[str, Any]], model: str) -> LLMSession:
-        """Create a new session with the given configuration.
-        
-        Args:
-            system_prompt: The system prompt to use
-            tools: List of tool definitions (provider-agnostic format)
-            model: Model name/identifier to use
-            
-        Returns:
-            A new session instance
-        """
+        """Create a new session with the given configuration."""
         pass

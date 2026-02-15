@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 
 from openai import AsyncOpenAI
 
-from .base import LLMProvider, LLMSession, SessionResult
+from .base import LLMProvider, LLMSession, SessionResult, write_monologue, clear_monologue
 
 
 # Max conversation rounds to keep (sliding window). DCSS state is always
@@ -53,6 +53,8 @@ class OpenAISession(LLMSession):
             "api_calls": 0,
             "total_duration_ms": 0,
         }
+        # Clear monologue for new session
+        clear_monologue()
 
     def _trim_history(self):
         """Keep system message + last MAX_HISTORY_ROUNDS pairs."""
@@ -136,6 +138,7 @@ class OpenAISession(LLMSession):
             if text.strip():
                 sys.stdout.write(text + "\n")
                 sys.stdout.flush()
+                write_monologue(text)
 
             self.messages.append({"role": "assistant", "content": text})
             return text
