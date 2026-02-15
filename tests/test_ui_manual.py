@@ -110,7 +110,7 @@ def main():
     msgs = dcss.auto_explore()
     print(f"  auto_explore: {len(msgs)} messages")
     state = dcss.get_stats()
-    print(f"  Stats: HP={state.get('hp')}/{state.get('hp_max')}, Place={state.get('place')}, Turn={state.get('turn')}")
+    print(f"  Stats: {state[:200] if isinstance(state, str) else state}")
     print("  PASS")
 
     # Quit cleanly
