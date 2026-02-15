@@ -88,6 +88,9 @@ class CopilotSession(LLMSession):
         if event.type == SessionEventType.ASSISTANT_MESSAGE_DELTA:
             content = event.data.delta_content
             if content and content.strip():
+                # Collapse multiple newlines to single
+                import re
+                content = re.sub(r'\n{2,}', '\n', content)
                 sys.stdout.write(content)
                 sys.stdout.flush()
         elif event.type == SessionEventType.ASSISTANT_MESSAGE:
