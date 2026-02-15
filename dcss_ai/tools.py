@@ -184,6 +184,30 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     })
     
     tools.append({
+        "name": "write_note",
+        "description": "Write a note to your scratchpad. Survives context compaction. Use for plans, item locations, things to remember.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Note text"}
+            },
+            "required": ["text"]
+        },
+        "handler": lambda params: dcss.write_note(params["text"])
+    })
+    
+    tools.append({
+        "name": "read_notes",
+        "description": "Read your scratchpad notes. Call this after context compaction to recover your plans and observations.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        },
+        "handler": lambda params: dcss.read_notes()
+    })
+    
+    tools.append({
         "name": "get_inventory",
         "description": "Get inventory as list of items with slot letters and names.",
         "parameters": {

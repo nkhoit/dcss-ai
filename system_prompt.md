@@ -18,6 +18,10 @@ Think out loud naturally — your inner monologue IS the stream content.
 If you're unsure what to do: call `auto_explore()`. If exploring is done: call `go_downstairs()`.
 If you can't find stairs, call `get_landmarks()` — it shows all discovered features even if out of view.Never output multiple paragraphs of planning without a tool call — act first, think briefly.
 
+## Scratchpad
+
+Use `write_note()` to save important observations: plans, item stash locations, shops to revisit, god gifts, dangerous areas. If you ever feel disoriented or lose track of your plan, call `read_notes()` to recover context. Your notes survive context compaction — chat history does not.
+
 ## Game API Reference
 
 ### Free Actions (no turn cost)
@@ -25,6 +29,8 @@ If you can't find stairs, call `get_landmarks()` — it shows all discovered fea
 get_state_text()          # Full game state: stats, messages, enemies, inventory, map
 get_map(radius=15)        # ASCII map centered on @ (you), shows explored tiles
 get_landmarks()           # Find stairs/altars on explored map (even out of view!)
+write_note(text)          # Save a note to scratchpad (survives compaction)
+read_notes()              # Read your scratchpad — call after compaction to reorient
 get_inventory()           # List of items: [{slot, name, quantity}, ...]
 get_nearby_enemies()      # List of enemies: [{name, direction, distance, threat}, ...]
 get_stats()               # One-line stats summary

@@ -70,6 +70,9 @@ class DCSSGame:
         
         # UI popup state
         self._current_popup: Optional[Dict[str, Any]] = None
+        
+        # Scratchpad — survives SDK compaction (lives on this object, not in chat history)
+        self._notes: List[str] = []
     
     # --- Connection/lifecycle ---
     
@@ -294,6 +297,17 @@ class DCSSGame:
         for f in results:
             lines.append(f"{f['type']} ({f['glyph']}) — {f['direction']}, {f['distance']} tiles away (dx={f['x']}, dy={f['y']})")
         return "\n".join(lines)
+
+    def write_note(self, text: str) -> str:
+        """Write a note to the scratchpad. Survives context compaction."""
+        self._notes.append(text)
+        return f"Note saved ({len(self._notes)} total)."
+    
+    def read_notes(self) -> str:
+        """Read all scratchpad notes for this session."""
+        if not self._notes:
+            return "No notes yet."
+        return "\n".join(f"- {n}" for n in self._notes)
 
     def get_nearby_enemies(self) -> List[Dict[str, Any]]:
         """Get visible enemies sorted by distance. Filters out plants/fungi."""
