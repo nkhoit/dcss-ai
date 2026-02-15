@@ -51,6 +51,7 @@ class DCSSGame:
         self._position = (0, 0)
         self._turn = 0
         self._is_dead = False
+        self._actions_since_narrate = 0  # track actions between narrate() calls
         self._session_ended = False  # set on death/win — blocks new games
         self._species = ""
         self._title = ""
@@ -847,6 +848,12 @@ class DCSSGame:
         """Send keys, wait for input_mode, return new messages."""
         if not self._ws or not self._in_game:
             return ["Not in game"]
+        
+        # Enforce narration — block actions if overdue
+        NARRATE_INTERVAL = 5
+        if self._actions_since_narrate >= NARRATE_INTERVAL:
+            return [f"[ERROR: You must call narrate() before continuing. You've taken {self._actions_since_narrate} actions without narrating for stream viewers.]"]
+        self._actions_since_narrate += 1
         
         # Block game actions while a menu/popup is open
         menu_keys = {"key_esc", " ", "key_enter"}

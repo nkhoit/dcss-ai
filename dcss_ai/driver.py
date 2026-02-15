@@ -154,18 +154,8 @@ class DCSSDriver:
                         else:
                             # Tool calls happened — it's playing, reset retries
                             retries = 0
-                            silent = getattr(session, '_silent_tool_calls', 0)
-                            self.logger.info(f"Game still in progress (silent_tools={silent}), continuing...")
-                            # Nudge for narration if too many silent tool calls
-                            if silent >= 5:
-                                prompt = (
-                                    "Keep playing, but NARRATE YOUR THINKING. You're streaming on Twitch — "
-                                    "viewers need to hear your thoughts. Say what you see, what you're planning, "
-                                    "what worries you. 2-3 sentences before each action. Then continue playing."
-                                )
-                                session._silent_tool_calls = 0
-                            else:
-                                prompt = continue_prompt
+                            self.logger.info("Game still in progress, continuing...")
+                            prompt = continue_prompt
                             
                 except Exception as e:
                     self.logger.error(f"Error during LLM interaction: {e}")

@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Callable
 from pydantic import BaseModel, Field
 
 from dcss_ai.game import DCSSGame
+from dcss_ai.providers.base import write_monologue
 
 
 # --- Tool parameter models (internal validation) ---
@@ -735,6 +736,23 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
             "required": ["text"]
         },
         "handler": _make_handler(dcss, "write_learning", LearningParams)
+    })
+    
+    # --- Game lifecycle ---
+    
+    # --- Narration ---
+    
+    tools.append({
+        "name": "narrate",
+        "description": "Share your thoughts with stream viewers. MUST be called at least once every 5 actions. Think out loud: what do you see, what's your plan, what worries you, what excites you.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "thought": {"type": "string", "description": "Your inner monologue for viewers. Be natural, opinionated, and conversational. 2-3 sentences."}
+            },
+            "required": ["thought"]
+        },
+        "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), "[Narrated]")[2]
     })
     
     # --- Game lifecycle ---
