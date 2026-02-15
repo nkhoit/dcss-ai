@@ -44,6 +44,23 @@ class GameState:
     @property
     def turn(self) -> int: return self._turn
 
+    @property
+    def status_effects(self) -> list: return self._status_effects
+    @property
+    def poison_survival(self) -> int: return self._poison_survival
+    @property
+    def piety_rank(self) -> int: return self._piety_rank
+    @property
+    def penance(self) -> bool: return self._penance
+    @property
+    def contamination(self) -> int: return self._contam
+    @property
+    def noise(self) -> int: return self._adjusted_noise
+    @property
+    def quiver_desc(self) -> str: return self._quiver_desc
+    @property
+    def xl_progress(self) -> int: return self._xl_progress
+
     def get_messages(self, n: int = 10) -> List[str]:
         return self._messages[-n:] if self._messages else []
 
@@ -53,11 +70,17 @@ class GameState:
             name = data.get("name", "")
             if not name or name == "?":
                 continue
-            items.append({
+            item = {
                 "slot": chr(ord('a') + slot) if slot < 26 else str(slot),
                 "name": name,
                 "quantity": data.get("quantity", 1),
-            })
+            }
+            # Mark equipped items
+            if slot == self._weapon_index:
+                item["equipped"] = "weapon"
+            elif slot == self._offhand_index:
+                item["equipped"] = "offhand"
+            items.append(item)
         return items
 
     def get_map(self, radius: int = 7) -> str:
@@ -167,11 +190,39 @@ class GameState:
         enemies.sort(key=lambda e: e["distance"])
         return enemies
 
+    def _get_status_text(self) -> str:
+        """Format active status effects into a readable string."""
+        if not self._status_effects:
+            return ""
+        lights = [s.get("light", s.get("text", "")) for s in self._status_effects if s.get("light") or s.get("text")]
+        return ", ".join(lights) if lights else ""
+
     def get_stats(self) -> str:
         char_info = f"{self._species} {self._title}".strip() if self._species else "Unknown"
-        return (f"Character: {char_info} | HP: {self._hp}/{self._max_hp} | MP: {self._mp}/{self._max_mp} | "
+        hp_str = f"HP: {self._hp}/{self._max_hp}"
+        if self._poison_survival and self._poison_survival < self._hp:
+            hp_str += f" (→{self._poison_survival} after poison)"
+        mp_str = f"MP: {self._mp}/{self._max_mp}"
+        god_str = self._god or "None"
+        if self._god:
+            piety_stars = "★" * self._piety_rank + "☆" * (6 - self._piety_rank) if self._piety_rank else ""
+            if piety_stars:
+                god_str += f" [{piety_stars}]"
+            if self._penance:
+                god_str += " (PENANCE!)"
+        contam_str = ""
+        if self._contam > 0:
+            contam_levels = ["", "glow", "glow+", "GLOW!", "GLOW!!"]
+            contam_str = f" | Contam: {contam_levels[min(self._contam, 4)]}"
+        noise_str = ""
+        if self._adjusted_noise >= 0:
+            noise_str = f" | Noise: {self._adjusted_noise}"
+        status = self._get_status_text()
+        status_str = f" | Status: {status}" if status else ""
+        return (f"Character: {char_info} | {hp_str} | {mp_str} | "
                 f"AC: {self._ac} EV: {self._ev} SH: {self._sh} | Str: {self._str} Int: {self._int} Dex: {self._dex} | "
-                f"XL: {self._xl} | Gold: {self._gold} | Place: {self._place}:{self._depth} | God: {self._god or 'None'} | Turn: {self._turn}")
+                f"XL: {self._xl} ({self._xl_progress}%) | Gold: {self._gold} | Place: {self._place}:{self._depth} | "
+                f"God: {god_str}{contam_str}{noise_str}{status_str} | Turn: {self._turn}")
 
     def get_state_text(self) -> str:
         parts = ["=== DCSS State ===", self.get_stats(), "", "--- Messages ---"]
@@ -182,7 +233,8 @@ class GameState:
             parts.append("")
             parts.append("--- Inventory ---")
             for item in inv:
-                parts.append(f"  {item['slot']}) {item['name']}")
+                equip_tag = f" (wielded)" if item.get("equipped") == "weapon" else f" (offhand)" if item.get("equipped") == "offhand" else ""
+                parts.append(f"  {item['slot']}) {item['name']}{equip_tag}")
         enemies = self.get_nearby_enemies()
         if enemies:
             parts.append("")

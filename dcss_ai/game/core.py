@@ -73,6 +73,7 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
         self._messages: List[str] = []
         self._map_cells: Dict[Tuple[int, int], str] = {}
         self._tile_fg: Dict[Tuple[int, int], int] = {}
+        self._cell_features: Dict[Tuple[int, int], int] = {}
         self._monsters: Dict[Tuple[int, int], Dict[str, Any]] = {}
         self._monster_names: Dict[int, str] = {}
 
@@ -85,6 +86,22 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
 
         # Pending text prompt
         self._pending_prompt: Optional[str] = None
+
+        # New: player status effects, piety, contamination, etc.
+        self._status_effects: List[Dict[str, str]] = []
+        self._poison_survival: int = 0
+        self._real_hp_max: int = 0
+        self._piety_rank: int = 0
+        self._penance: bool = False
+        self._contam: int = 0
+        self._noise: int = -1
+        self._adjusted_noise: int = -1
+        self._form: int = 0
+        self._quiver_desc: str = ""
+        self._elapsed_time: int = 0
+        self._xl_progress: int = 0
+        self._weapon_index: int = -1
+        self._offhand_index: int = -1
 
         # Notepad
         self._notepad: Dict[str, List[str]] = {}
@@ -347,6 +364,18 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
             "xl": "_xl", "place": "_place", "depth": "_depth",
             "god": "_god", "gold": "_gold", "turn": "_turn",
             "species": "_species", "title": "_title",
+            "poison_survival": "_poison_survival",
+            "real_hp_max": "_real_hp_max",
+            "piety_rank": "_piety_rank",
+            "penance": "_penance",
+            "contam": "_contam",
+            "adjusted_noise": "_adjusted_noise",
+            "form": "_form",
+            "quiver_desc": "_quiver_desc",
+            "time": "_elapsed_time",
+            "progress": "_xl_progress",
+            "weapon_index": "_weapon_index",
+            "offhand_index": "_offhand_index",
         }
         for json_key, attr in field_map.items():
             if json_key in msg:
@@ -362,6 +391,18 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
                     self._inventory[slot] = item_data
                 else:
                     self._inventory.pop(slot, None)
+        if "status" in msg:
+            self._status_effects = []
+            for s in msg["status"]:
+                effect = {}
+                if "light" in s:
+                    effect["light"] = s["light"]
+                if "text" in s:
+                    effect["text"] = s["text"]
+                if "desc" in s:
+                    effect["desc"] = s["desc"]
+                if effect:
+                    self._status_effects.append(effect)
 
     def _update_map(self, msg: Dict[str, Any]):
         cells = msg.get("cells", [])
@@ -383,6 +424,8 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
             if cur_x is not None and cur_y is not None:
                 if "g" in cell:
                     self._map_cells[(cur_x, cur_y)] = cell["g"]
+                if "f" in cell:
+                    self._cell_features[(cur_x, cur_y)] = cell["f"]
                 # Store fg tile flags for behavior/status decoding
                 if "fg" in cell:
                     fg = cell["fg"]
