@@ -24,7 +24,7 @@ jobs:
 
       - name: Start DCSS server
         run: |
-          cd server && docker compose up -d
+          docker run -d --name dcss-webtiles -p 8080:8080 frozenfoxx/crawl:latest
           # Wait for WebSocket to accept connections
           pip install websockets -q
           python -c "
@@ -46,4 +46,4 @@ jobs:
 
       - name: Stop DCSS server
         if: always()
-        run: cd server && docker compose down
+        run: docker stop dcss-webtiles && docker rm dcss-webtiles
