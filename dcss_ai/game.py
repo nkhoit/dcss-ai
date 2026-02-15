@@ -899,9 +899,18 @@ class DCSSGame:
                         # "More" prompt — press space to continue
                         self._ws.send_key(" ")
                     elif mode == 7:
-                        # Text input prompt (e.g. "Really quit?", "Call which ally?")
-                        logger.info(f"Text input prompt during _act, escaping (keys={keys})")
-                        self._ws.send_key("key_esc")
+                        # Text input prompt — check if it's a stat increase
+                        # Look for "(S)trength" pattern in recent messages
+                        recent = self._messages[-5:] if self._messages else []
+                        stat_prompt = any("(S)trength" in m for m in recent)
+                        if stat_prompt:
+                            # Auto-pick Strength for melee, Intelligence for casters
+                            # TODO: let AI choose via a tool
+                            logger.info(f"Stat increase prompt, auto-picking S (keys={keys})")
+                            self._ws.send_key("s")
+                        else:
+                            logger.info(f"Text input prompt during _act, escaping (keys={keys})")
+                            self._ws.send_key("key_esc")
                     elif mode == 0:
                         # Travelling/auto-explore in progress — wait for it
                         pass
