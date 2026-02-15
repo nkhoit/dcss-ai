@@ -72,6 +72,7 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
         # Message history and map state
         self._messages: List[str] = []
         self._map_cells: Dict[Tuple[int, int], str] = {}
+        self._tile_fg: Dict[Tuple[int, int], int] = {}
         self._monsters: Dict[Tuple[int, int], Dict[str, Any]] = {}
         self._monster_names: Dict[int, str] = {}
 
@@ -377,6 +378,14 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
             if cur_x is not None and cur_y is not None:
                 if "g" in cell:
                     self._map_cells[(cur_x, cur_y)] = cell["g"]
+                # Store fg tile flags for behavior/status decoding
+                if "fg" in cell:
+                    fg = cell["fg"]
+                    if isinstance(fg, list):
+                        # [lo, hi] split for 64-bit values
+                        self._tile_fg[(cur_x, cur_y)] = (fg[1] << 32) | (fg[0] & 0xFFFFFFFF)
+                    else:
+                        self._tile_fg[(cur_x, cur_y)] = fg
                 if "mon" in cell:
                     if cell["mon"]:
                         mon_data = cell["mon"]

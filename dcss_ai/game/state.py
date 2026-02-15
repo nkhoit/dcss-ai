@@ -102,6 +102,45 @@ class GameState:
             lines.append(f"{f['type']} ({f['glyph']}) \u2014 {f['direction']}, {f['distance']} tiles away (dx={f['x']}, dy={f['y']})")
         return "\n".join(lines)
 
+    # Tile flag constants for monster behavior/status (from tile-flags.h)
+    _BEH_MASK     = 0x00700000
+    _STAB         = 0x00100000
+    _MAY_STAB     = 0x00200000
+    _FLEEING      = 0x00300000
+    _PARALYSED    = 0x00400000
+    _MDAM_MASK    = 0x1C0000000
+    _MDAM_LIGHT   = 0x040000000
+    _MDAM_MOD     = 0x080000000
+    _MDAM_HEAVY   = 0x0C0000000
+    _MDAM_SEV     = 0x100000000
+    _MDAM_ADEAD   = 0x1C0000000
+
+    def _decode_monster_status(self, pos: tuple) -> str:
+        """Decode behavior and damage flags from tile fg value."""
+        fg = self._tile_fg.get(pos, 0)
+        parts = []
+        beh = fg & self._BEH_MASK
+        if beh == self._STAB:
+            parts.append("sleeping")
+        elif beh == self._MAY_STAB:
+            parts.append("unaware")
+        elif beh == self._FLEEING:
+            parts.append("fleeing")
+        elif beh == self._PARALYSED:
+            parts.append("paralysed")
+        mdam = fg & self._MDAM_MASK
+        if mdam == self._MDAM_LIGHT:
+            parts.append("lightly wounded")
+        elif mdam == self._MDAM_MOD:
+            parts.append("moderately wounded")
+        elif mdam == self._MDAM_HEAVY:
+            parts.append("heavily wounded")
+        elif mdam == self._MDAM_SEV:
+            parts.append("severely wounded")
+        elif mdam == self._MDAM_ADEAD:
+            parts.append("almost dead")
+        return ", ".join(parts) if parts else ""
+
     def get_nearby_enemies(self) -> List[Dict[str, Any]]:
         IGNORE = {'plant', 'withered plant', 'fungus', 'toadstool', 'bush',
                   'ballistomycete spore', 'briar patch', 'pillar of salt',
@@ -123,7 +162,8 @@ class GameState:
             elif dy > 0: direction += "s"
             if dx > 0: direction += "e"
             elif dx < 0: direction += "w"
-            enemies.append({"name": mon.get("name", "unknown"), "x": dx, "y": dy, "direction": direction or "here", "distance": dist, "threat": mon.get("threat", 0)})
+            status = self._decode_monster_status((mx, my))
+            enemies.append({"name": mon.get("name", "unknown"), "x": dx, "y": dy, "direction": direction or "here", "distance": dist, "threat": mon.get("threat", 0), "status": status})
         enemies.sort(key=lambda e: e["distance"])
         return enemies
 
@@ -148,7 +188,8 @@ class GameState:
             parts.append("")
             parts.append("--- Enemies ---")
             for e in enemies:
-                parts.append(f"  {e['name']} ({e['direction']}, dist {e['distance']}, threat {e['threat']})")
+                status_str = f", {e['status']}" if e.get('status') else ""
+                parts.append(f"  {e['name']} ({e['direction']}, dist {e['distance']}, threat {e['threat']}{status_str})")
         parts.append("")
         parts.append("--- Map ---")
         parts.append(self.get_map())
