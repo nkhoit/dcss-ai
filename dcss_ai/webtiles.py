@@ -255,15 +255,23 @@ class WebTilesConnection:
         """Abandon current game (Ctrl-Q + 'yes' to confirm). Deletes save."""
         # Clear any blocking prompts first (stat increase, etc.)
         # Stat prompts can't be escaped — must answer them
-        for _ in range(3):
+        for _ in range(5):
             msgs = self.recv_messages(timeout=0.3)
+            saw_mode7 = False
             for msg in msgs:
-                if msg.get("msg") == "msgs" and "entries" in msg:
-                    for e in msg["entries"]:
-                        if "(S)trength" in e.get("text", ""):
-                            self.send_key("S")
-                            time.sleep(0.2)
-            self.send_key("key_esc")
+                if msg.get("msg") == "input_mode" and msg.get("mode") == 7:
+                    saw_mode7 = True
+                # Check for stat prompt text in any message type
+                text = str(msg)
+                if "(S)trength" in text or "Uppercase letters" in text:
+                    self.send_key("S")
+                    time.sleep(0.3)
+                    saw_mode7 = False  # handled it
+            if saw_mode7:
+                # Mode 7 but not stat prompt — try escape
+                self.send_key("key_esc")
+            else:
+                self.send_key("key_esc")
             time.sleep(0.1)
         self.recv_messages(timeout=0.3)  # drain
         
