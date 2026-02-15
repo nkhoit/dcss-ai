@@ -349,10 +349,13 @@ class DCSSGame:
         for (mx, my), mon in self._monsters.items():
             if not mon:
                 continue
+            dx, dy = mx - px, my - py
+            dist = max(abs(dx), abs(dy))
+            if dist > 8:  # LOS radius is 7, +1 buffer
+                continue
             name = mon.get("name", "unknown").lower()
             if name in IGNORE:
                 continue
-            dx, dy = mx - px, my - py
             direction = ""
             if dy < 0: direction += "n"
             elif dy > 0: direction += "s"
@@ -362,7 +365,7 @@ class DCSSGame:
                 "name": mon.get("name", "unknown"),
                 "x": dx, "y": dy,
                 "direction": direction or "here",
-                "distance": max(abs(dx), abs(dy)),
+                "distance": dist,
                 "threat": mon.get("threat", 0),
             })
         enemies.sort(key=lambda e: e["distance"])
