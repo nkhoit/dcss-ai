@@ -33,7 +33,11 @@ class GameActions:
         return self.move(direction)
 
     def auto_explore(self) -> List[str]:
-        return self._act("o")
+        turn_before = self._turn
+        result = self._act("o")
+        if self._turn == turn_before:
+            result.append("[Floor fully explored. Call go_downstairs() to auto-travel to the nearest downstairs and descend.]")
+        return result
 
     def auto_fight(self) -> List[str]:
         return self._act("key_tab")
