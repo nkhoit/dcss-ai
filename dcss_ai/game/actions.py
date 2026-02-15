@@ -18,9 +18,13 @@ class GameActions:
         result = self._act(key_map[d])
         if self._turn == turn_before:
             self._consecutive_failed_moves += 1
-            if self._consecutive_failed_moves >= 3:
-                return [f"[ERROR: {self._consecutive_failed_moves} consecutive failed moves. STOP using move() for navigation. Use auto_explore() to explore or go_downstairs() to travel to stairs. move() is ONLY for combat — attacking adjacent enemies.]"]
-            result.append(f"[Nothing happened — there's a wall or obstacle to the {direction}. Use auto_explore() or go_downstairs() to navigate.]")
+            n = self._consecutive_failed_moves
+            if n >= 5:
+                result.append(f"[You've failed to move {n} times in a row. Something is clearly wrong with your approach. Stop and reconsider — what other tools do you have for navigation? If this is a recurring problem, write_learning() about it.]")
+            elif n >= 3:
+                result.append(f"[{n} consecutive failed moves. There's a wall or obstacle to the {direction}. Think about what other navigation tools are available.]")
+            else:
+                result.append(f"[Nothing happened — there's a wall or obstacle to the {direction}.]")
         else:
             self._consecutive_failed_moves = 0
         return result
