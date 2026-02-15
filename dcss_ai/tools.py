@@ -185,26 +185,42 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     
     tools.append({
         "name": "write_note",
-        "description": "Write a note to your scratchpad. Survives context compaction. Use for plans, item locations, things to remember.",
+        "description": "Write a note to your notepad. Notes are organized by page (default: current floor like 'D:1'). Use 'general' for cross-floor notes. Survives context compaction.",
         "parameters": {
             "type": "object",
             "properties": {
-                "text": {"type": "string", "description": "Note text"}
+                "text": {"type": "string", "description": "Note text"},
+                "page": {"type": "string", "description": "Page name (default: current floor, e.g. 'D:1')", "default": ""}
             },
             "required": ["text"]
         },
-        "handler": lambda params: dcss.write_note(params["text"])
+        "handler": lambda params: dcss.write_note(params["text"], params.get("page", ""))
     })
     
     tools.append({
         "name": "read_notes",
-        "description": "Read your scratchpad notes. Call this after context compaction to recover your plans and observations.",
+        "description": "Read your notepad. Shows all pages by default, or specify a page name. Call after compaction to reorient.",
         "parameters": {
             "type": "object",
-            "properties": {},
+            "properties": {
+                "page": {"type": "string", "description": "Page name to read (blank = all pages)", "default": ""}
+            },
             "required": []
         },
-        "handler": lambda params: dcss.read_notes()
+        "handler": lambda params: dcss.read_notes(params.get("page", ""))
+    })
+    
+    tools.append({
+        "name": "rip_page",
+        "description": "Remove a page from the notepad. Use when leaving a floor and notes are no longer relevant.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "page": {"type": "string", "description": "Page name to remove (e.g. 'D:1')"}
+            },
+            "required": ["page"]
+        },
+        "handler": lambda params: dcss.rip_page(params["page"])
     })
     
     tools.append({

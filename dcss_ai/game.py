@@ -71,8 +71,9 @@ class DCSSGame:
         # UI popup state
         self._current_popup: Optional[Dict[str, Any]] = None
         
-        # Scratchpad — survives SDK compaction (lives on this object, not in chat history)
-        self._notes: List[str] = []
+        # Notepad — survives SDK compaction (lives on this object, not in chat history)
+        # Keyed by page name (e.g. "D:1", "D:2", "general")
+        self._notepad: Dict[str, List[str]] = {}
     
     # --- Connection/lifecycle ---
     
@@ -298,16 +299,38 @@ class DCSSGame:
             lines.append(f"{f['type']} ({f['glyph']}) — {f['direction']}, {f['distance']} tiles away (dx={f['x']}, dy={f['y']})")
         return "\n".join(lines)
 
-    def write_note(self, text: str) -> str:
-        """Write a note to the scratchpad. Survives context compaction."""
-        self._notes.append(text)
-        return f"Note saved ({len(self._notes)} total)."
+    def write_note(self, text: str, page: str = "") -> str:
+        """Write a note to a notepad page. Default page = current floor."""
+        if not page:
+            page = f"{self._place}:{self._depth}" if self._place else "general"
+        if page not in self._notepad:
+            self._notepad[page] = []
+        self._notepad[page].append(text)
+        total = sum(len(v) for v in self._notepad.values())
+        return f"Note saved to [{page}] ({len(self._notepad[page])} notes on this page, {total} total)."
     
-    def read_notes(self) -> str:
-        """Read all scratchpad notes for this session."""
-        if not self._notes:
-            return "No notes yet."
-        return "\n".join(f"- {n}" for n in self._notes)
+    def read_notes(self, page: str = "") -> str:
+        """Read notepad. If page specified, show that page. Otherwise show all pages."""
+        if not self._notepad:
+            return "Notepad is empty."
+        if page:
+            notes = self._notepad.get(page, [])
+            if not notes:
+                return f"No notes on page [{page}]."
+            return f"[{page}]\n" + "\n".join(f"- {n}" for n in notes)
+        lines = []
+        for p, notes in self._notepad.items():
+            lines.append(f"[{p}]")
+            for n in notes:
+                lines.append(f"  - {n}")
+        return "\n".join(lines)
+    
+    def rip_page(self, page: str) -> str:
+        """Remove a page from the notepad."""
+        if page in self._notepad:
+            count = len(self._notepad.pop(page))
+            return f"Ripped out [{page}] ({count} notes removed)."
+        return f"No page [{page}] to rip out."
 
     def get_nearby_enemies(self) -> List[Dict[str, Any]]:
         """Get visible enemies sorted by distance. Filters out plants/fungi."""

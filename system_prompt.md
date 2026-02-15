@@ -18,9 +18,9 @@ Think out loud naturally — your inner monologue IS the stream content.
 If you're unsure what to do: call `auto_explore()`. If exploring is done: call `go_downstairs()`.
 If you can't find stairs, call `get_landmarks()` — it shows all discovered features even if out of view.Never output multiple paragraphs of planning without a tool call — act first, think briefly.
 
-## Scratchpad
+## Notepad
 
-Use `write_note()` to save important observations: plans, item stash locations, shops to revisit, god gifts, dangerous areas. If you ever feel disoriented or lose track of your plan, call `read_notes()` to recover context. Your notes survive context compaction — chat history does not.
+Your notepad survives context compaction — chat history does not. Notes are organized by page (default = current floor like "D:1"). Use `write_note()` to jot down important observations: plans, item stash locations, shops to revisit, god gifts, dangerous areas. Use `rip_page("D:1")` when you leave a floor and don't need those notes anymore. Use `read_notes()` after compaction to reorient. Use page `"general"` for cross-floor plans.
 
 ## Game API Reference
 
@@ -29,8 +29,9 @@ Use `write_note()` to save important observations: plans, item stash locations, 
 get_state_text()          # Full game state: stats, messages, enemies, inventory, map
 get_map(radius=15)        # ASCII map centered on @ (you), shows explored tiles
 get_landmarks()           # Find stairs/altars on explored map (even out of view!)
-write_note(text)          # Save a note to scratchpad (survives compaction)
-read_notes()              # Read your scratchpad — call after compaction to reorient
+write_note(text, page="")  # Write note to notepad (default page = current floor)
+read_notes(page="")       # Read notepad — all pages or specific page. Call after compaction!
+rip_page(page)            # Remove a page when you're done with a floor
 get_inventory()           # List of items: [{slot, name, quantity}, ...]
 get_nearby_enemies()      # List of enemies: [{name, direction, distance, threat}, ...]
 get_stats()               # One-line stats summary
