@@ -3,6 +3,7 @@
 
 import json
 import sys
+import time
 from pathlib import Path
 from typing import Any, Dict, List, Callable
 from pydantic import BaseModel, Field
@@ -766,7 +767,7 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
             },
             "required": ["thought"]
         },
-        "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), sys.stdout.write(f"\n💭 {params.get('thought', '')}\n"), sys.stdout.flush(), "[Narrated]")[4]
+        "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} 💭 {params.get('thought', '')}\n"), sys.stdout.flush(), "[Narrated]")[4]
     })
     
     # --- Game lifecycle ---
