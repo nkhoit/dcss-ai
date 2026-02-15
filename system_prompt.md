@@ -95,9 +95,14 @@ read_menu()               # See what's in the current menu (title, items, hotkey
 select_menu_item(key)     # Press a hotkey to select/toggle an item
 close_menu()              # Close the menu (Escape)
 ```
-Menus appear for shops, spell lists, ability menus, item selection, etc.
-When a menu opens, call `read_menu()` to see its contents, then interact with hotkeys.
-For shops: select items with letter keys, then press Enter to buy. Check your gold first!
+
+### Popups (descriptions, god info, monster info)
+```
+read_popup()              # Read the current UI popup text
+dismiss_popup()           # Close the popup (Escape)
+```
+Menus and popups appear during gameplay. When one opens, read it to see contents,
+then interact or dismiss. For shops: select items with letter keys, then Enter to buy.
 
 ### Session & Learning
 ```

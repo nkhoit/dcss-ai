@@ -65,8 +65,11 @@ class DCSSGame:
         self._monster_names: Dict[int, str] = {}  # id -> name cache
         
         # Menu state
-        self._current_menu: Optional[Dict[str, Any]] = None  # active menu data
-        self._menu_items: List[Dict[str, Any]] = []  # cached menu items
+        self._current_menu: Optional[Dict[str, Any]] = None
+        self._menu_items: List[Dict[str, Any]] = []
+        
+        # UI popup state
+        self._current_popup: Optional[Dict[str, Any]] = None
     
     # --- Connection/lifecycle ---
     
@@ -596,6 +599,85 @@ class DCSSGame:
                 else:
                     self._menu_items.append(item)
 
+    # --- UI popup interaction ---
+
+    def _handle_ui_msg(self, msg: dict):
+        """Process a ui-push/ui-state message and cache it."""
+        mt = msg.get("msg")
+        if mt == "ui-push":
+            self._current_popup = msg
+        elif mt == "ui-state" and self._current_popup:
+            # Update existing popup
+            for k, v in msg.items():
+                if k != "msg":
+                    self._current_popup[k] = v
+
+    def read_popup(self) -> str:
+        """Read the currently open UI popup (description, god screen, etc.).
+        
+        Returns the popup type and readable text content.
+        If no popup is open, returns a message saying so.
+        """
+        if not self._current_popup:
+            return "No popup is currently open."
+        
+        p = self._current_popup
+        ui_type = p.get("type", "unknown")
+        lines = [f"=== Popup: {ui_type} ==="]
+        
+        # Extract text from various popup formats
+        # formatted-scroller: has "body" with formatted text
+        body = p.get("body", "")
+        if body:
+            if isinstance(body, str):
+                lines.append(self._strip_formatting(body))
+            elif isinstance(body, dict):
+                lines.append(self._strip_formatting(body.get("text", str(body))))
+        
+        # Title
+        title = p.get("title", "")
+        if title:
+            if isinstance(title, str):
+                lines.insert(1, self._strip_formatting(title))
+            elif isinstance(title, dict):
+                lines.insert(1, self._strip_formatting(title.get("text", "")))
+        
+        # Some popups have "prompt"
+        prompt = p.get("prompt", "")
+        if prompt:
+            lines.append(self._strip_formatting(prompt if isinstance(prompt, str) else str(prompt)))
+        
+        # Describe-item/monster/god specific fields
+        for field in ("description", "quote", "spells_description", "stats"):
+            val = p.get(field, "")
+            if val:
+                text = val if isinstance(val, str) else str(val)
+                lines.append(self._strip_formatting(text))
+        
+        # If we got nothing useful, dump available keys
+        if len(lines) == 1:
+            data_keys = [k for k in p.keys() if k not in ("msg", "type", "generation_id")]
+            lines.append(f"Data keys: {', '.join(data_keys)}")
+        
+        return "\n".join(lines)
+
+    def dismiss_popup(self) -> str:
+        """Dismiss the currently open UI popup by pressing Escape."""
+        if not self._current_popup:
+            return "No popup is currently open."
+        
+        self._ws.send_key("key_esc")
+        import time
+        time.sleep(0.3)
+        msgs = self._ws.recv_messages(timeout=1.0)
+        for msg in msgs:
+            self._process_msg(msg)
+            if msg.get("msg") == "ui-pop":
+                self._current_popup = None
+        
+        self._current_popup = None
+        return "Popup dismissed."
+
     @staticmethod
     def _strip_formatting(text: str) -> str:
         """Strip DCSS formatting codes from text (e.g. color tags)."""
@@ -709,9 +791,13 @@ class DCSSGame:
                     self._is_dead = True
                     self._in_game = False
                 elif mt in ("ui-push", "ui-state"):
-                    # UI overlay (inventory screen, description, etc.) — escape it
-                    logger.debug(f"UI overlay ({mt}) during _act, escaping (keys={keys})")
-                    self._ws.send_key("key_esc")
+                    # UI popup (description, god screen, etc.) — cache for read_popup()
+                    ui_type = msg.get("type", "unknown")
+                    logger.info(f"UI popup ({mt}) type={ui_type} during _act (keys={keys})")
+                    self._handle_ui_msg(msg)
+                    got_input = True
+                elif mt == "ui-pop":
+                    self._current_popup = None
                 elif mt in ("menu", "update_menu", "update_menu_items"):
                     # Menu opened/updated — cache it for read_menu() tool
                     logger.info(f"Menu message ({mt}) tag={msg.get('tag', '?')} during _act (keys={keys})")

@@ -635,6 +635,33 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         "handler": lambda params: dcss.close_menu()
     })
 
+    # --- UI popup interaction ---
+
+    tools.append({
+        "name": "read_popup",
+        "description": (
+            "Read the currently open UI popup (item description, god info, monster info, etc.). "
+            "Returns the popup type and text content. Call when a popup appears."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        },
+        "handler": lambda params: dcss.read_popup()
+    })
+
+    tools.append({
+        "name": "dismiss_popup",
+        "description": "Dismiss the currently open UI popup by pressing Escape.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        },
+        "handler": lambda params: dcss.dismiss_popup()
+    })
+
     tools.append({
         "name": "update_overlay",
         "description": "Update the stream overlay with current stats and your thought. Call after every action.",
