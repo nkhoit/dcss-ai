@@ -862,9 +862,9 @@ class DCSSGame:
         if not self._ws or not self._in_game:
             return ["Not in game"]
         
-        # Enforce narration — block actions if overdue
-        NARRATE_INTERVAL = 5
-        if not menu_ok and self._actions_since_narrate >= NARRATE_INTERVAL:
+        # Enforce narration — block actions if overdue (set DCSS_NARRATE_INTERVAL=0 to disable)
+        NARRATE_INTERVAL = int(os.environ.get("DCSS_NARRATE_INTERVAL", "5"))
+        if NARRATE_INTERVAL > 0 and not menu_ok and self._actions_since_narrate >= NARRATE_INTERVAL:
             return [f"[ERROR: You must call narrate() before continuing. You've taken {self._actions_since_narrate} actions without narrating for stream viewers.]"]
         if not menu_ok:
             self._actions_since_narrate += 1
