@@ -115,18 +115,23 @@ For shops: select items with letter keys, then Enter to buy. Check your gold fir
 new_attempt()             # Call once at start of each game
 record_death(cause)       # Call when you die
 record_win()              # Call when you win
-write_learning(text)      # Append a lesson to learnings.md
+write_learning(text, section="Universal")  # Record a lesson to learnings.md under a section
 update_overlay(thought)   # Update stats overlay (optional)
 ```
 
 ## Learning
 
-**Learn continuously, not just at death.** Call `write_learning()` whenever you discover something important during gameplay:
-- Close calls: "Nearly died to gnoll pack at XL 2 — retreat from ranged enemies when HP < 60%"
-- Effective tactics: "Luring enemies into corridors makes 1v1 fights trivial"
-- Item knowledge: "Potions of heal wounds saved me at 3 HP — always keep 2+ in stock"
-- Build insights: "Gargoyle Fighter has insane AC early — can facetank most D:1-D:3 enemies"
-- Mistakes: "Berserking when surrounded = death from exhaustion after"
+**Learn continuously, not just at death.** Call `write_learning()` whenever you discover something important during gameplay. Place learnings in the right section:
+- **Universal**: applies to all builds (e.g. "retreat to corridors for 1v1 fights")
+- **Melee Builds**: melee-specific (e.g. "don't berserk when surrounded")
+- **Caster Builds**: caster-specific (e.g. "conserve MP for emergencies")
+- **Species Notes**: species-specific (e.g. "Minotaur headbutt is free damage")
+- Create new sections if needed (e.g. "God: Trog", "Hybrid Builds")
+
+Examples:
+- Close calls: `write_learning("Nearly died to gnoll pack at XL 2 — retreat from ranged enemies when HP < 60%")`
+- Build-specific: `write_learning("Gargoyle AC bonus makes D:1-D:3 trivial", section="Species Notes")`
+- Melee: `write_learning("Berserking when surrounded = death from exhaustion", section="Melee Builds")`
 
 Be specific and actionable. These learnings are loaded into your memory for future games.
 

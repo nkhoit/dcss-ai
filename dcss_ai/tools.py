@@ -43,6 +43,7 @@ class DeathParams(BaseModel):
 
 class LearningParams(BaseModel):
     text: str = Field(description="A lesson learned from this game. Be specific and actionable.")
+    section: str = Field(default="Universal", description="Section: Universal, Melee Builds, Caster Builds, Species Notes, or a new section name")
 
 class StartGameParams(BaseModel):
     species_key: str = Field(default="b", description=(
@@ -78,9 +79,33 @@ def _make_handler(dcss: DCSSGame, method_name: str, param_model: type, *args, **
         # Special case: write_learning doesn't use DCSSGame
         if hasattr(params, 'text') and method_name == 'write_learning':
             learnings_path = Path(__file__).parent.parent / "learnings.md"
-            with open(learnings_path, 'a') as f:
-                f.write(f"\n- {params.text}")
-            return "Learning recorded."
+            section = getattr(params, 'section', 'Universal')
+            text = params.text
+            
+            content = learnings_path.read_text() if learnings_path.exists() else ""
+            
+            # Find the section header and append after its last bullet
+            header = f"## {section}"
+            if header in content:
+                # Find the next section header after this one
+                header_pos = content.index(header)
+                after_header = content[header_pos + len(header):]
+                next_section = after_header.find("\n## ")
+                if next_section == -1:
+                    # Last section — append at end
+                    content = content.rstrip() + f"\n- {text}\n"
+                else:
+                    insert_pos = header_pos + len(header) + next_section
+                    content = content[:insert_pos].rstrip() + f"\n- {text}\n" + content[insert_pos:]
+            else:
+                # Section doesn't exist — add it before Recent Deaths
+                if "## Recent Deaths" in content:
+                    content = content.replace("## Recent Deaths", f"## {section}\n- {text}\n\n## Recent Deaths")
+                else:
+                    content = content.rstrip() + f"\n\n## {section}\n- {text}\n"
+            
+            learnings_path.write_text(content)
+            return f"Learning recorded in [{section}]."
         
         # Call the DCSS method
         method = getattr(dcss, method_name)
@@ -700,11 +725,12 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     
     tools.append({
         "name": "write_learning",
-        "description": "Append a lesson to learnings.md. Call after every death AND every win. Be specific: what happened, why, what to do differently. These persist across all future games.",
+        "description": "Record a lesson to learnings.md under a section. Call during gameplay, after death, AND after wins. Be specific. These persist across all future games.",
         "parameters": {
             "type": "object",
             "properties": {
-                "text": {"type": "string", "description": "A lesson learned from this game. Be specific and actionable."}
+                "text": {"type": "string", "description": "A lesson learned. Be specific and actionable."},
+                "section": {"type": "string", "description": "Section: Universal, Melee Builds, Caster Builds, Species Notes, or a new one", "default": "Universal"}
             },
             "required": ["text"]
         },
