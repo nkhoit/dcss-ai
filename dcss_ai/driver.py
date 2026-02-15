@@ -102,6 +102,7 @@ class DCSSDriver:
 
         try:
             self.logger.info(f"Starting game session (attempt #{self.dcss._attempt + 1})")
+            self.dcss._session_ended = False  # reset for new session
             prompt = kickoff_prompt
             retries = 0
             deaths_before = self.dcss._deaths

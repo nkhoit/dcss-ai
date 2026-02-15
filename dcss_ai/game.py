@@ -51,6 +51,7 @@ class DCSSGame:
         self._position = (0, 0)
         self._turn = 0
         self._is_dead = False
+        self._session_ended = False  # set on death/win — blocks new games
         self._species = ""
         self._title = ""
         
@@ -106,6 +107,8 @@ class DCSSGame:
     
     def start_game(self, species_key: str, background_key: str, weapon_key: str = "", game_id: str = "") -> str:
         """Start a new game, abandoning any stale saves first. Returns initial state."""
+        if self._session_ended:
+            return "Session has ended (death/win recorded). Say GAME_OVER to finish."
         if not self._connected or not self._ws:
             raise RuntimeError("Not connected to server")
         
@@ -485,17 +488,21 @@ class DCSSGame:
 
     def new_attempt(self):
         """Call when starting a new game. Increments attempt counter."""
+        if self._session_ended:
+            return "Session has ended. Say GAME_OVER to finish."
         self._attempt += 1
         self.update_overlay("Starting new game...")
 
     def record_death(self, cause: str = ""):
         """Call when the character dies. Increments death counter."""
         self._deaths += 1
+        self._session_ended = True
         self.update_overlay(f"Died: {cause}" if cause else "Died.")
 
     def record_win(self):
         """Call when the character wins. Increments win counter."""
         self._wins += 1
+        self._session_ended = True
         self.update_overlay("WON! 🎉")
 
     # --- Internals ---
