@@ -66,9 +66,7 @@ def _make_copilot_tool(name: str, description: str, handler, param_model):
             args_str = ", ".join(f"{k}={v!r}" for k, v in params_dict.items() if v is not None and v != "")
             _log.debug(f"🔧 {name}({args_str})")
             result = handler(params_dict)
-            # Truncate long results for readability
-            result_preview = result if len(result) < 200 else result[:200] + "..."
-            _log.debug(f"  → {result_preview}")
+            _log.debug(f"  → {result}")
             return result
         tool_fn.__name__ = name
         tool_fn.__qualname__ = name
