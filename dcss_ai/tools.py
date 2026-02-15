@@ -767,7 +767,7 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
             },
             "required": ["thought"]
         },
-        "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} 💭 {params.get('thought', '')}\n"), sys.stdout.flush(), "[Narrated]")[4]
+        "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')},{int(time.time()*1000)%1000:03d} 💭 {params.get('thought', '')}\n"), sys.stdout.flush(), "[Narrated]")[4]
     })
     
     # --- Game lifecycle ---
