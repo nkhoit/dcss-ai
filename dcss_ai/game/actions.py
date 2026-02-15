@@ -65,13 +65,10 @@ class GameActions:
 
     def cast_spell(self, key: str, direction: str = "") -> List[str]:
         # Stage 1: open spell menu and select spell
-        # This will trigger a targeting prompt (mode 7) for targeted spells
         self._ws.send_key("z")
         self._ws.send_key(key)
-        # Brief wait for the server to process
         import time
         time.sleep(0.15)
-        # Drain messages to see what happened
         msgs = self._ws.recv_messages(timeout=0.5)
         targeting = False
         for msg in msgs:
@@ -79,13 +76,22 @@ class GameActions:
             if msg.get("msg") == "input_mode" and msg.get("mode") in (4, 7):
                 targeting = True
         if targeting:
-            # Stage 2: send direction or confirm
+            # Stage 2: send direction or auto-target
             if direction:
-                return self._act(self._dir_key(direction))
+                dir_key = self._dir_key(direction)
             else:
-                return self._act(".")
+                dir_key = "."
+            result = self._act(dir_key)
+            # If spell didn't resolve (e.g. "can't see that place"),
+            # we may still be in targeting mode — escape to clean up
+            if any("can't see" in m.lower() or "can't reach" in m.lower() for m in result):
+                self._ws.send_key("key_esc")
+                time.sleep(0.1)
+                self._ws.recv_messages(timeout=0.3)  # drain
+                result.append("[Spell targeting cancelled — target not visible. Try without direction to auto-target nearest enemy.]")
+            return result
         else:
-            # Spell was instant (self-target) or failed - drain remaining
+            # Spell was instant or failed — drain remaining
             more_msgs = self._ws.recv_messages(timeout=0.3)
             for msg in more_msgs:
                 self._process_msg(msg)
