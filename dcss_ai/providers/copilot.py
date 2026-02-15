@@ -105,6 +105,7 @@ class CopilotSession(LLMSession):
             self._current_message = []
             if full_text.strip():
                 self._silent_tool_calls = 0
+                write_monologue(full_text)
                 ts = time.strftime('%Y-%m-%d %H:%M:%S')
                 ms = int(time.time() * 1000) % 1000
                 sys.stdout.write(f"{ts},{ms:03d} 🤖 {full_text.strip()}\n")
