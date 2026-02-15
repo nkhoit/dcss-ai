@@ -137,8 +137,9 @@ class CopilotSession(LLMSession):
                 self.session.send_and_wait({"prompt": message}, timeout=7200)
             )
             
-            # Poll until task completes or model goes silent
+            # Poll until task completes or model goes silent/needs narration nudge
             silent_limit = 60  # seconds of no output = stuck
+            narration_threshold = 5  # silent tool calls before forcing narration
             while not task.done():
                 await asyncio.sleep(1)
                 since_delta = time.time() - self.last_delta_time
@@ -146,6 +147,19 @@ class CopilotSession(LLMSession):
                 last_activity = min(since_delta, since_tool)
                 
                 if last_activity > silent_limit:
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+                    return SessionResult(
+                        completed=False,
+                        text="",
+                        usage=self.usage_totals.copy()
+                    )
+                
+                # Force narration break — cancel so driver can nudge
+                if self._silent_tool_calls >= narration_threshold:
                     task.cancel()
                     try:
                         await task
