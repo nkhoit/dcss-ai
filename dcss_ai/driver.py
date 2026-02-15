@@ -383,6 +383,11 @@ class DCSSDriver:
         last_tool_call = [0.0]  # mutable ref for closure
         import time as _time
 
+        # Accumulate usage stats
+        usage_totals = {"input_tokens": 0, "output_tokens": 0, "cache_read_tokens": 0,
+                        "cache_write_tokens": 0, "premium_requests": 0, "api_calls": 0,
+                        "total_duration_ms": 0}
+
         def handle_event(event):
             if event.type == SessionEventType.ASSISTANT_MESSAGE_DELTA:
                 sys.stdout.write(event.data.delta_content)
@@ -392,8 +397,15 @@ class DCSSDriver:
                 sys.stdout.flush()
             elif event.type in (SessionEventType.TOOL_EXECUTION_START, SessionEventType.TOOL_EXECUTION_COMPLETE):
                 last_tool_call[0] = _time.time()
-            elif event.type in (SessionEventType.ASSISTANT_USAGE, SessionEventType.SESSION_USAGE_INFO):
-                self.logger.info(f"Usage event ({event.type.name}): {event.data}")
+            elif event.type == SessionEventType.ASSISTANT_USAGE:
+                d = event.data
+                usage_totals["input_tokens"] += int(d.input_tokens or 0)
+                usage_totals["output_tokens"] += int(d.output_tokens or 0)
+                usage_totals["cache_read_tokens"] += int(d.cache_read_tokens or 0)
+                usage_totals["cache_write_tokens"] += int(d.cache_write_tokens or 0)
+                usage_totals["premium_requests"] += int(d.cost or 0)
+                usage_totals["api_calls"] += 1
+                usage_totals["total_duration_ms"] += int(d.duration or 0)
 
         session.on(handle_event)
 
@@ -456,6 +468,14 @@ class DCSSDriver:
                 self.logger.error(f"LLM hung {MAX_RETRIES} times in a row, abandoning game")
 
             self.logger.info(f"Game session ended. Deaths: {self.dcss._deaths}, Wins: {self.dcss._wins}")
+            self.logger.info(
+                f"Session usage: {usage_totals['api_calls']} API calls, "
+                f"{usage_totals['input_tokens']:,} input tokens, "
+                f"{usage_totals['output_tokens']:,} output tokens, "
+                f"{usage_totals['cache_read_tokens']:,} cache read tokens, "
+                f"{usage_totals['premium_requests']} premium requests, "
+                f"{usage_totals['total_duration_ms']/1000:.1f}s total API time"
+            )
 
         except Exception as e:
             self.logger.error(f"Error during game session: {e}")
