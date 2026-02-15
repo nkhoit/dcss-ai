@@ -110,8 +110,8 @@ class CopilotSession(LLMSession):
             if full_text.strip():
                 write_monologue(full_text)
                 self._silent_tool_calls = 0
-            sys.stdout.write("\n")
-            sys.stdout.flush()
+                sys.stdout.write("\n")
+                sys.stdout.flush()
         elif event.type == SessionEventType.ASSISTANT_USAGE:
             d = event.data
             self.usage_totals["input_tokens"] += int(d.input_tokens or 0)
