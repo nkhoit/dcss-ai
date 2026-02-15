@@ -75,6 +75,13 @@ def _make_handler(dcss: DCSSGame, method_name: str, param_model: type, *args, **
         # Validate parameters using Pydantic model
         params = param_model(**params_dict)
         
+        # Special case: write_learning doesn't use DCSSGame
+        if hasattr(params, 'text') and method_name == 'write_learning':
+            learnings_path = Path(__file__).parent.parent / "learnings.md"
+            with open(learnings_path, 'a') as f:
+                f.write(f"\n- {params.text}")
+            return "Learning recorded."
+        
         # Call the DCSS method
         method = getattr(dcss, method_name)
         
@@ -112,12 +119,6 @@ def _make_handler(dcss: DCSSGame, method_name: str, param_model: type, *args, **
         elif hasattr(params, 'cause'):
             # DeathParams
             result = method(params.cause, *args, **kwargs)
-        elif hasattr(params, 'text'):
-            # LearningParams - special case
-            learnings_path = Path(__file__).parent.parent / "learnings.md"
-            with open(learnings_path, 'a') as f:
-                f.write(f"\n- {params.text}")
-            return "Learning recorded."
         elif hasattr(params, 'species_key'):
             # StartGameParams
             result = method(params.species_key, params.background_key, params.weapon_key, *args, **kwargs)
