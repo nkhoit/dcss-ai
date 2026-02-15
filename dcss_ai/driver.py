@@ -126,6 +126,7 @@ class DCSSDriver:
             retries = 0
             deaths_before = self.dcss._deaths
             wins_before = self.dcss._wins
+            nudge_count = 0  # consecutive SDK completions without tool calls
 
             while self.running and retries < MAX_RETRIES:
                 session.last_tool_time = _time.time()
@@ -149,15 +150,22 @@ class DCSSDriver:
                             )
                             break
                         else:
-                            # SDK ended but game is still going — create fresh session
-                            self.logger.warning("SDK session completed but game still active, creating new session...")
-                            session = await self.provider.create_session(system_prompt, tools, self.config["model"])
-                            self._active_session = session
-                            prompt = (
-                                "You are continuing a game already in progress. "
-                                "Call get_stats() and get_state_text() to see your current state, then keep playing."
-                            )
-                            retries += 1
+                            # SDK ended but game is still going — auto-continue (not a retry)
+                            nudge_count += 1
+                            if nudge_count >= 10:
+                                # Session is stuck — create a fresh one
+                                self.logger.warning(f"SDK completed {nudge_count}x without progress, creating new session...")
+                                session = await self.provider.create_session(system_prompt, tools, self.config["model"])
+                                self._active_session = session
+                                nudge_count = 0
+                                retries += 1
+                                prompt = (
+                                    "You are continuing a game already in progress. "
+                                    "Call get_stats() and get_state_text() to see your current state, then keep playing."
+                                )
+                            else:
+                                self.logger.info(f"SDK session completed, game still active — nudging ({nudge_count})...")
+                                prompt = "You stopped without calling a tool. You MUST call a tool every turn. Call get_stats() to check your state, then take an action."
                             continue
                     else:
                         # Timeout or other failure
@@ -184,7 +192,9 @@ class DCSSDriver:
                             )
                             prompt = continue_prompt
                         else:
-                            # Tool calls happened — it's playing, reset retries
+                            # Tool calls happened — it's playing, reset retries and nudges
+                            retries = 0
+                            nudge_count = 0
                             retries = 0
                             self.logger.info("Game still in progress, continuing...")
                             prompt = continue_prompt
