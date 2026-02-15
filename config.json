@@ -1,0 +1,12 @@
+{
+    "server_url": "ws://localhost:8080/socket",
+    "username": "dcssai",
+    "password": "dcssai",
+    "provider": "copilot",
+    "model": "claude-sonnet-4",
+    "single": false,
+    "narrate_interval": 0,
+    "silent_timeout": 60,
+    "max_retries": 5,
+    "turn_timeout": 120
+}

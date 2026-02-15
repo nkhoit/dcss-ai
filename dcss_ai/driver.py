@@ -25,13 +25,14 @@ from dcss_ai.game import DCSSGame
 from dcss_ai.tools import build_tools
 from dcss_ai.providers import get_provider
 from dcss_ai.providers.base import LLMProvider, LLMSession
+from dcss_ai.config import load_config, DEFAULTS
 
 
 class DCSSDriver:
     """Main driver that manages LLM sessions and DCSS games."""
 
-    def __init__(self, args):
-        self.args = args
+    def __init__(self, config):
+        self.config = config
         self.running = True
         self.provider: Optional[LLMProvider] = None
         self.dcss = DCSSGame()
@@ -40,6 +41,9 @@ class DCSSDriver:
             "cache_write_tokens": 0, "premium_requests": 0, "api_calls": 0,
             "total_duration_ms": 0,
         }
+
+        # Set narrate interval for game.py to read
+        os.environ["DCSS_NARRATE_INTERVAL"] = str(config["narrate_interval"])
 
         logging.basicConfig(
             level=logging.INFO,
@@ -60,8 +64,8 @@ class DCSSDriver:
     async def connect_to_dcss(self) -> bool:
         """Connect to DCSS server."""
         try:
-            self.logger.info(f"Connecting to DCSS server at {self.args.server_url}")
-            self.dcss.connect(self.args.server_url, self.args.username, self.args.password)
+            self.logger.info(f"Connecting to DCSS server at {self.config["server_url"]}")
+            self.dcss.connect(self.config["server_url"], self.config["username"], self.config["password"])
             self.logger.info("Connected to DCSS server")
             return True
         except Exception as e:
@@ -87,11 +91,11 @@ class DCSSDriver:
         system_prompt = self.load_system_prompt()
         tools = build_tools(self.dcss)
 
-        session = await self.provider.create_session(system_prompt, tools, self.args.model)
+        session = await self.provider.create_session(system_prompt, tools, self.config["model"])
 
         # Track tool activity to detect hangs
-        SILENT_TIMEOUT = 60  # seconds — no output at all = truly stuck
-        MAX_RETRIES = 5     # consecutive timeouts before abandoning THIS game
+        SILENT_TIMEOUT = self.config["silent_timeout"]
+        MAX_RETRIES = self.config["max_retries"]
 
         kickoff_prompt = (
             "Start a new DCSS game. Call new_attempt() first, then start_game(). "
@@ -192,11 +196,11 @@ class DCSSDriver:
         self.logger.info("Starting DCSS AI Driver")
 
         # Initialize LLM provider
-        self.provider = get_provider(self.args.provider, 
+        self.provider = get_provider(self.config["provider"], 
                                       base_url=getattr(self.args, 'base_url', None),
                                       api_key=getattr(self.args, 'api_key', None))
         await self.provider.start()
-        self.logger.info(f"LLM provider '{self.args.provider}' connected")
+        self.logger.info(f"LLM provider '{self.config["provider"]}' connected")
 
         # Connect to DCSS server
         if not await self.connect_to_dcss():
@@ -217,7 +221,7 @@ class DCSSDriver:
 
                     # Brief pause between games
                     if self.running:
-                        if self.args.single:
+                        if self.config["single"]:
                             self.logger.info("Single game mode, exiting")
                             break
                         self.logger.info("Starting next game in 5 seconds...")
@@ -250,7 +254,7 @@ class DCSSDriver:
         print(f"  Deaths:        {self.dcss._deaths}")
         print(f"  Wins:          {self.dcss._wins}")
         print(f"  Runtime:       {hours}h {mins}m {secs}s")
-        print(f"  Model:         {self.args.model}")
+        print(f"  Model:         {self.config["model"]}")
         print(f"  API calls:     {self.total_usage['api_calls']:,}")
         print(f"  Input tokens:  {self.total_usage['input_tokens']:,}")
         print(f"  Output tokens: {self.total_usage['output_tokens']:,}")
@@ -275,25 +279,35 @@ class DCSSDriver:
 
 async def main():
     parser = argparse.ArgumentParser(description="DCSS AI Driver with configurable LLM providers")
-    parser.add_argument("--server-url", default="ws://localhost:8080/socket",
-                        help="DCSS webtiles server WebSocket URL")
-    parser.add_argument("--username", default="kurobot",
-                        help="DCSS server username")
-    parser.add_argument("--password", default="kurobot123",
-                        help="DCSS server password")
-    parser.add_argument("--provider", default="copilot",
-                        help="LLM provider to use (copilot, openai)")
-    parser.add_argument("--base-url", default=None,
-                        help="Base URL for OpenAI-compatible provider (e.g. https://ollama.example.com/v1)")
-    parser.add_argument("--api-key", default=None,
+    parser.add_argument("--server-url", dest="server_url", default=None,
+                        help=f"DCSS webtiles WebSocket URL (default: {DEFAULTS['server_url']})")
+    parser.add_argument("--username", default=None,
+                        help=f"DCSS server username (default: {DEFAULTS['username']})")
+    parser.add_argument("--password", default=None,
+                        help=f"DCSS server password (default: {DEFAULTS['password']})")
+    parser.add_argument("--provider", default=None,
+                        help=f"LLM provider (default: {DEFAULTS['provider']})")
+    parser.add_argument("--base-url", dest="base_url", default=None,
+                        help="Base URL for OpenAI-compatible provider")
+    parser.add_argument("--api-key", dest="api_key", default=None,
                         help="API key for OpenAI-compatible provider")
-    parser.add_argument("--model", default="claude-sonnet-4",
-                        help="Model to use")
-    parser.add_argument("--single", action="store_true",
+    parser.add_argument("--model", default=None,
+                        help=f"Model to use (default: {DEFAULTS['model']})")
+    parser.add_argument("--single", action="store_true", default=False,
                         help="Play one game then exit")
+    parser.add_argument("--narrate-interval", dest="narrate_interval", type=int, default=None,
+                        help=f"Actions between forced narrations, 0=disable (default: {DEFAULTS['narrate_interval']})")
     args = parser.parse_args()
 
-    driver = DCSSDriver(args)
+    # store_true gives False not None — only override if explicitly set
+    cli_dict = {k: v for k, v in vars(args).items() if v is not None}
+    if args.single:
+        cli_dict["single"] = True
+    else:
+        cli_dict.pop("single", None)
+
+    config = load_config(cli_dict)
+    driver = DCSSDriver(config)
     return await driver.run_forever()
 
 
