@@ -65,9 +65,22 @@ class LearningParams(BaseModel):
     text: str = Field(description="A lesson learned from this game. Be specific and actionable.")
 
 class StartGameParams(BaseModel):
-    species_key: str = Field(default="b", description="Species key (b=Minotaur)")
-    background_key: str = Field(default="f", description="Background key (f=Berserker)")
-    weapon_key: str = Field(default="b", description="Weapon key")
+    species_key: str = Field(default="b", description=(
+        "Species key: a=Human, b=Minotaur, c=Merfolk, d=Gargoyle, e=Draconian, "
+        "f=Palentonga, g=Gnoll, h=Troll, i=Ghoul, j=Tengu, k=Barachi, "
+        "l=Ogre, m=Djinni, n=Spriggan, o=Vine Stalker, p=Demigod, "
+        "q=Demonspawn, r=Mummy, s=Naga, t=Formicid, u=Kobold, v=Vampire, "
+        "w=Deep Elf, x=Hill Orc, y=Octopode, z=Felid"
+    ))
+    background_key: str = Field(default="f", description=(
+        "Background key: a=Fighter, b=Gladiator, c=Monk, d=Hunter, e=Brigand, "
+        "f=Berserker, g=Cinder Acolyte, h=Chaos Knight, i=Wanderer, "
+        "j=Wizard, k=Conjurer, l=Summoner, m=Necromancer, n=Transmuter, "
+        "o=Fire Elementalist, p=Ice Elementalist, q=Air Elementalist, "
+        "r=Earth Elementalist, s=Venom Mage, t=Enchanter, u=Hexslinger, "
+        "v=Warper, w=Alchemist"
+    ))
+    weapon_key: str = Field(default="b", description="Weapon key (a or b, depends on background)")
 
 class MapParams(BaseModel):
     radius: int = Field(default=7, description="Map view radius")
@@ -393,8 +406,11 @@ class DCSSDriver:
             self.logger.info(f"Starting game session (attempt #{self.dcss._attempt + 1})")
             await session.send_and_wait({
                 "prompt": (
-                    "Start a new DCSS game. Call new_attempt() first, then start_game() "
-                    "with Minotaur Berserker. Play the game — explore, fight, survive. "
+                    "Start a new DCSS game. Call new_attempt() first, then start_game(). "
+                    "Try different species/background combos — experiment! Don't always pick "
+                    "the same build. Learn what works and what doesn't. Record build choices "
+                    "in your learnings. "
+                    "Play the game — explore, fight, survive. "
                     "Call update_overlay() with a brief thought after every action. "
                     "When you die, call record_death() with the cause and reflect on what "
                     "went wrong — then call write_learning() for each lesson. "
