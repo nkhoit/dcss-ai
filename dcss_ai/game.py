@@ -498,9 +498,9 @@ class DCSSGame:
     
     def choose_stat(self, stat: str) -> List[str]:
         """Choose a stat to increase on level up: s=Strength, i=Intelligence, d=Dexterity."""
-        stat = stat.lower()
-        if stat not in ("s", "i", "d"):
-            return ["[ERROR: Invalid stat. Use 's' (Strength), 'i' (Intelligence), or 'd' (Dexterity).]"]
+        stat = stat.upper()
+        if stat not in ("S", "I", "D"):
+            return ["[ERROR: Invalid stat. Use 'S' (Strength), 'I' (Intelligence), or 'D' (Dexterity).]"]
         if self._pending_prompt != "stat_increase":
             return ["[No stat increase prompt pending.]"]
         self._pending_prompt = None

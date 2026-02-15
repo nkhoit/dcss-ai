@@ -261,7 +261,7 @@ class WebTilesConnection:
                 if msg.get("msg") == "msgs" and "entries" in msg:
                     for e in msg["entries"]:
                         if "(S)trength" in e.get("text", ""):
-                            self.send_key("s")
+                            self.send_key("S")
                             time.sleep(0.2)
             self.send_key("key_esc")
             time.sleep(0.1)
