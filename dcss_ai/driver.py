@@ -390,7 +390,7 @@ class DCSSDriver:
             elif event.type == SessionEventType.ASSISTANT_MESSAGE:
                 sys.stdout.write("\n")
                 sys.stdout.flush()
-            elif event.type == SessionEventType.TOOL_CALL:
+            elif event.type in (SessionEventType.TOOL_EXECUTION_START, SessionEventType.TOOL_EXECUTION_COMPLETE):
                 last_tool_call[0] = _time.time()
 
         session.on(handle_event)
