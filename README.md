@@ -86,41 +86,7 @@ docker stop dcss-webtiles && docker rm dcss-webtiles
 
 ## Game API
 
-The `DCSSGame` class provides a clean Python API over the DCSS webtiles protocol.
-
-### State (free, no turn cost)
-| Method | Returns |
-|---|---|
-| `get_state_text()` | Full dump: stats, messages, enemies, inventory, map |
-| `get_map(radius=7)` | ASCII map centered on `@` |
-| `get_inventory()` | `[{slot, name, quantity}, ...]` |
-| `get_nearby_enemies()` | `[{name, direction, distance, threat}, ...]` |
-| `get_stats()` | One-line: `HP/MP/AC/EV/XL/place/turn` |
-| `get_messages(n=10)` | Recent game messages |
-
-### Actions (consume turns)
-| Method | Description |
-|---|---|
-| `move(dir)` | Move one step (`n/s/e/w/ne/nw/se/sw`) |
-| `auto_explore()` | Explore until interrupted |
-| `auto_fight()` | Tab-fight nearest (blocked at low HP) |
-| `attack(dir)` | Melee in direction (works at any HP) |
-| `rest()` | Rest until healed |
-| `pickup()` | Pick up items |
-| `go_downstairs()` / `go_upstairs()` | Use stairs |
-| `wield(slot)` / `wear(slot)` | Equip weapon/armour |
-| `quaff(slot)` / `read_scroll(slot)` | Use consumables |
-| `zap_wand(slot, dir)` | Zap a wand |
-| `use_ability(key)` | God/species ability |
-| `cast_spell(key, dir)` | Cast spell |
-| `examine(slot)` | Inspect an item |
-
-### Stream Overlay
-| Method | Description |
-|---|---|
-| `update_overlay(thought)` | Update stats.json with current thought |
-| `new_attempt()` | Increment attempt counter |
-| `record_death(cause)` / `record_win()` | Track game outcomes |
+The `DCSSGame` class in [`game.py`](dcss_ai/game.py) provides a clean Python API over the DCSS webtiles protocol — state queries (free, no turn cost) and actions (movement, combat, items, abilities).
 
 ## Credits
 
