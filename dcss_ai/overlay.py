@@ -55,6 +55,11 @@ def send_reset() -> None:
     broadcast("reset", {})
 
 
+def send_game_started() -> None:
+    """Tell overlays a new game is ready to spectate."""
+    broadcast("game_started", {})
+
+
 async def _handle_sse(reader, writer):
     """Handle a single SSE client connection."""
     # Read HTTP request

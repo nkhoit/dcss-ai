@@ -1,6 +1,7 @@
 """DCSS Game API wrapper for LLM-controlled gameplay."""
 import json
 import logging
+from dcss_ai.overlay import send_game_started
 import os
 import re
 import time
@@ -159,6 +160,7 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
             if not msgs:
                 break
 
+        send_game_started()
         return self.get_state_text()
 
     def quit_game(self):
