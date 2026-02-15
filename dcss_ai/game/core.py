@@ -421,15 +421,6 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
         cells = msg.get("cells", [])
         if not cells:
             return
-        updated_positions = set()
-        cur_x, cur_y = None, None
-        for cell in cells:
-            if "x" in cell: cur_x = cell["x"]
-            if "y" in cell: cur_y = cell["y"]
-            if cur_x is not None and cur_y is not None:
-                updated_positions.add((cur_x, cur_y))
-        for pos in updated_positions:
-            self._monsters.pop(pos, None)
         cur_x, cur_y = None, None
         for cell in cells:
             if "x" in cell: cur_x = cell["x"]
