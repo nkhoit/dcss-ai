@@ -87,6 +87,7 @@ class CopilotSession(LLMSession):
         # Activity tracking
         self.last_delta_time = time.time()
         self.last_tool_time = time.time()
+        self._silent_tool_calls = 0  # tool calls with no text narration
         
         # Set up event handling
         self.session.on(self._handle_event)
@@ -106,7 +107,9 @@ class CopilotSession(LLMSession):
             # Complete message — write to monologue
             full_text = "".join(self._current_message)
             self._current_message = []
-            write_monologue(full_text)
+            if full_text.strip():
+                write_monologue(full_text)
+                self._silent_tool_calls = 0
             sys.stdout.write("\n")
             sys.stdout.flush()
         elif event.type == SessionEventType.ASSISTANT_USAGE:
@@ -120,6 +123,8 @@ class CopilotSession(LLMSession):
             self.usage_totals["total_duration_ms"] += int(d.duration or 0)
         elif event.type == SessionEventType.TOOL_EXECUTION_START:
             self.last_tool_time = time.time()
+            if not "".join(self._current_message).strip():
+                self._silent_tool_calls += 1
     
     async def send(self, message: str, timeout: float = 120) -> SessionResult:
         """Send message and wait for completion.
