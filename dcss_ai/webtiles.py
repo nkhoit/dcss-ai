@@ -248,26 +248,26 @@ class WebTilesConnection:
         # Send Ctrl+Q
         self.send_key("key_ctrl_q")
         
-        # Wait for response — either input_mode=7 (instant quit) or text prompt
+        # Wait for text input prompt (mode 7 + init_input)
         for _ in range(10):
             msgs = self.recv_messages(timeout=1.0)
-            got_quit = False
+            got_text_prompt = False
             for msg in msgs:
                 if msg.get("msg") == "go_lobby":
                     return
                 if msg.get("msg") == "input_mode" and msg.get("mode") == 7:
-                    got_quit = True
-            if got_quit:
+                    got_text_prompt = True
+                if msg.get("msg") == "init_input":
+                    got_text_prompt = True
+            if got_text_prompt:
+                # Confirm with "yes"
+                self.send_key("yes")
+                self.send_key("key_enter")
                 break
-            # Confirm the "Really quit?" prompt
-            self.send_key("yes")
-            self.send_key("key_enter")
-            time.sleep(0.3)
-            break
         
         # Escape through post-quit screens until lobby
         for _ in range(10):
-            msgs = self.recv_messages(timeout=0.5)
+            msgs = self.recv_messages(timeout=1.0)
             for msg in msgs:
                 if msg.get("msg") == "go_lobby":
                     return

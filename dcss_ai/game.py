@@ -538,8 +538,9 @@ class DCSSGame:
                         # "More" prompt — press space to continue
                         self._ws.send_key(" ")
                     elif mode == 7:
-                        self._is_dead = True
-                        self._in_game = False
+                        # Text input prompt (e.g. "Really quit?", "Call which ally?")
+                        # Escape out of it — the AI shouldn't be in text input during _act
+                        self._ws.send_key("key_esc")
                     elif mode == 0:
                         # Travelling/auto-explore in progress — wait for it
                         pass
