@@ -370,7 +370,7 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     
     tools.append({
         "name": "go_upstairs",
-        "description": "Go upstairs (<).",
+        "description": "Ascend to the previous floor. If not standing on stairs, auto-travels to the nearest upstairs first. May be interrupted by enemies.",
         "parameters": {
             "type": "object",
             "properties": {},
@@ -378,11 +378,10 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         },
         "handler": _make_handler(dcss, "go_upstairs", EmptyParams)
     })
-    tools[-1]["handler"]._default_msg = "Went upstairs."
     
     tools.append({
         "name": "go_downstairs",
-        "description": "Go downstairs (>).",
+        "description": "Descend to the next floor. If not standing on stairs, auto-travels to the nearest downstairs first. May be interrupted by enemies.",
         "parameters": {
             "type": "object",
             "properties": {},
@@ -390,7 +389,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         },
         "handler": _make_handler(dcss, "go_downstairs", EmptyParams)
     })
-    tools[-1]["handler"]._default_msg = "Went downstairs."
     
     # --- Items ---
     

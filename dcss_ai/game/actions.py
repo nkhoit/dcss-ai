@@ -55,10 +55,50 @@ class GameActions:
         return self._act(".")
 
     def go_upstairs(self) -> List[str]:
-        return self._act("<")
+        depth_before = self._depth
+        place_before = self._place
+        result = self._act("<")
+        if self._depth >= depth_before and self._place == place_before:
+            result.append("[Not standing on upstairs (<). Use auto_explore() to find stairs, or move to a '<' tile on the map first.]")
+        return result
 
     def go_downstairs(self) -> List[str]:
-        return self._act(">")
+        depth_before = self._depth
+        place_before = self._place
+        result = self._act(">")
+        if self._depth <= depth_before and self._place == place_before:
+            # Not on stairs — try interlevel travel (G then > at prompt)
+            result2 = self._interlevel_travel(">")
+            if result2 is not None:
+                return result2
+            result.append("[Not standing on downstairs (>). Use auto_explore() to find stairs, or move to a '>' tile on the map first.]")
+        return result
+
+    def _interlevel_travel(self, destination: str) -> list:
+        """Use G (interlevel travel) to auto-travel. Returns messages or None if failed."""
+        import time
+        self._ws.send_key("G")
+        time.sleep(0.15)
+        msgs = self._ws.recv_messages(timeout=0.5)
+        got_prompt = False
+        for msg in msgs:
+            self._process_msg(msg)
+            if msg.get("msg") == "input_mode" and msg.get("mode") == 7:
+                got_prompt = True
+        if got_prompt:
+            # Send destination (e.g. ">" for nearest downstairs)
+            # Need to type the destination and press enter
+            self._ws.send_key(destination)
+            self._ws.send_key("key_enter")
+            # Wait for travel to complete or be interrupted (may take a while)
+            result = self._act(timeout=15.0)  # longer timeout for auto-travel
+            return result
+        else:
+            # No prompt appeared — escape anything leftover
+            self._ws.send_key("key_esc")
+            time.sleep(0.1)
+            self._ws.recv_messages(timeout=0.2)
+            return None
 
     def pickup(self) -> List[str]:
         msgs = self._act(",")

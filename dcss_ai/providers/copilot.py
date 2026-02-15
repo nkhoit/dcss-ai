@@ -198,8 +198,17 @@ class CopilotSession(LLMSession):
             )
         except Exception as e:
             # API errors (missing finish_reason, etc.) — treat as non-fatal timeout
-
+            error_msg = str(e)
             logging.getLogger("dcss_ai").warning(f"SDK error (will retry): {e}")
+
+            # Session not found is fatal — the session is gone and retrying won't help
+            if "Session not found" in error_msg:
+                return SessionResult(
+                    completed=True,  # Signal driver to stop retrying
+                    text="[SDK session expired]",
+                    usage=self.usage_totals.copy()
+                )
+
             return SessionResult(
                 completed=False,
                 text="",
