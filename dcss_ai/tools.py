@@ -173,6 +173,17 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     })
     
     tools.append({
+        "name": "get_landmarks",
+        "description": "Find stairs, altars, and other notable features on the explored map. Shows direction and distance from current position. Use this to navigate to known stairs instead of wandering.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        },
+        "handler": lambda params: dcss.get_landmarks()
+    })
+    
+    tools.append({
         "name": "get_inventory",
         "description": "Get inventory as list of items with slot letters and names.",
         "parameters": {

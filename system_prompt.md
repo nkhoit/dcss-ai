@@ -16,7 +16,7 @@ Think out loud naturally — your inner monologue IS the stream content.
 
 **Every response MUST include at least one tool call.** Never just think/narrate without acting.
 If you're unsure what to do: call `auto_explore()`. If exploring is done: call `go_downstairs()`.
-Never output multiple paragraphs of planning without a tool call — act first, think briefly.
+If you can't find stairs, call `get_landmarks()` — it shows all discovered features even if out of view.Never output multiple paragraphs of planning without a tool call — act first, think briefly.
 
 ## Game API Reference
 
@@ -24,6 +24,7 @@ Never output multiple paragraphs of planning without a tool call — act first, 
 ```
 get_state_text()          # Full game state: stats, messages, enemies, inventory, map
 get_map(radius=7)         # ASCII map centered on @ (you)
+get_landmarks()           # Find stairs/altars on explored map (even out of view!)
 get_inventory()           # List of items: [{slot, name, quantity}, ...]
 get_nearby_enemies()      # List of enemies: [{name, direction, distance, threat}, ...]
 get_stats()               # One-line stats summary

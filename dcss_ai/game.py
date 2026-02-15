@@ -252,6 +252,49 @@ class DCSSGame:
             lines.append(line)
         return "\n".join(lines)
     
+    def get_landmarks(self) -> str:
+        """Find notable features on the explored map: stairs, shops, altars, portals."""
+        LANDMARKS = {
+            '>': 'downstairs',
+            '<': 'upstairs',
+            '_': 'altar',
+            '+': 'door',
+        }
+        # Also match shop tiles (could be various chars)
+        px, py = self._position
+        found = []
+        for (x, y), glyph in self._map_cells.items():
+            if glyph in LANDMARKS:
+                dx, dy = x - px, y - py
+                dist = max(abs(dx), abs(dy))
+                direction = ""
+                if dy < 0: direction += "N"
+                elif dy > 0: direction += "S"
+                if dx > 0: direction += "E"
+                elif dx < 0: direction += "W"
+                found.append({
+                    "type": LANDMARKS[glyph],
+                    "glyph": glyph,
+                    "direction": direction or "here",
+                    "distance": dist,
+                    "x": dx, "y": dy,
+                })
+        # Sort by type priority then distance
+        type_order = {'downstairs': 0, 'upstairs': 1, 'altar': 2, 'door': 3}
+        found.sort(key=lambda f: (type_order.get(f['type'], 9), f['distance']))
+        
+        if not found:
+            return "No landmarks discovered yet."
+        
+        # Filter out doors (too noisy) unless very few landmarks
+        non_doors = [f for f in found if f['type'] != 'door']
+        results = non_doors if non_doors else found[:10]
+        
+        lines = []
+        for f in results:
+            lines.append(f"{f['type']} ({f['glyph']}) — {f['direction']}, {f['distance']} tiles away (dx={f['x']}, dy={f['y']})")
+        return "\n".join(lines)
+
     def get_nearby_enemies(self) -> List[Dict[str, Any]]:
         """Get visible enemies sorted by distance. Filters out plants/fungi."""
         IGNORE = {'plant', 'withered plant', 'fungus', 'toadstool', 'bush', 
