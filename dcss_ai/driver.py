@@ -59,7 +59,7 @@ class DCSSDriver:
         self._active_session = None
 
     def _signal_handler(self, signum, frame):
-        self.logger.info(f"Received signal {signum}, shutting down...")
+        print(f"\n[Signal {signum}] Shutting down...", flush=True)
         self.running = False
         self._shutdown = True
         # Signal the active session to stop
@@ -133,17 +133,24 @@ class DCSSDriver:
                     result = await session.send(prompt)
                     
                     if result.completed:
-                        # Normal completion — game ended
-                        self.logger.info("Session completed normally")
-                        self.logger.info(
-                            f"Session usage: {result.usage.get('api_calls', 0)} API calls, "
-                            f"{result.usage.get('input_tokens', 0):,} input tokens, "
-                            f"{result.usage.get('output_tokens', 0):,} output tokens, "
-                            f"{result.usage.get('cache_read_tokens', 0):,} cache read tokens, "
-                            f"{result.usage.get('premium_requests', 0)} premium requests, "
-                            f"{result.usage.get('total_duration_ms', 0)/1000:.1f}s total API time"
-                        )
-                        break
+                        # SDK thinks it's done — but check if the game actually ended
+                        if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
+                            self.logger.info("Session completed — game ended (death/win)")
+                            self.logger.info(
+                                f"Session usage: {result.usage.get('api_calls', 0)} API calls, "
+                                f"{result.usage.get('input_tokens', 0):,} input tokens, "
+                                f"{result.usage.get('output_tokens', 0):,} output tokens, "
+                                f"{result.usage.get('cache_read_tokens', 0):,} cache read tokens, "
+                                f"{result.usage.get('premium_requests', 0)} premium requests, "
+                                f"{result.usage.get('total_duration_ms', 0)/1000:.1f}s total API time"
+                            )
+                            break
+                        else:
+                            # SDK ended but game is still going — continue with a nudge
+                            self.logger.warning("SDK session completed but game still active, continuing...")
+                            prompt = "The session was interrupted. Continue playing — check your state with get_stats() and keep exploring."
+                            retries += 1
+                            continue
                     else:
                         # Timeout or other failure
                         # Check if a game ended during this turn
