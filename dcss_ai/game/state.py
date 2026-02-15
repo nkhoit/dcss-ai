@@ -64,6 +64,12 @@ class GameState:
     def get_messages(self, n: int = 10) -> List[str]:
         return self._messages[-n:] if self._messages else []
 
+    def get_cell_overlays_at(self, pos: tuple = None) -> Dict[str, Any]:
+        """Get environmental overlays at a position (default: player position)."""
+        if pos is None:
+            pos = self._position
+        return self._cell_overlays.get(pos, {})
+
     def get_inventory(self) -> List[Dict[str, Any]]:
         items = []
         for slot, data in sorted(self._inventory.items()):
@@ -80,6 +86,10 @@ class GameState:
                 item["equipped"] = "weapon"
             elif slot == self._offhand_index:
                 item["equipped"] = "offhand"
+            if data.get("useless"):
+                item["useless"] = True
+            if data.get("inscription"):
+                item["inscription"] = data["inscription"]
             items.append(item)
         return items
 
@@ -190,6 +200,14 @@ class GameState:
         enemies.sort(key=lambda e: e["distance"])
         return enemies
 
+    # Form names from transformation.h (index = enum value, skipping TAG_MAJOR_VERSION == 34 entries)
+    _FORM_NAMES = {
+        0: "", 1: "Spider", 2: "Blade Hands", 3: "Statue", 4: "Serpent",
+        5: "Dragon", 6: "Death", 7: "Bat", 8: "Pig", 9: "Tree",
+        10: "Wisp", 11: "Jelly", 12: "Fungus", 13: "Storm", 14: "Quill",
+        15: "Maw", 16: "Flux", 17: "Slaughter", 18: "Vampire",
+    }
+
     def _get_status_text(self) -> str:
         """Format active status effects into a readable string."""
         if not self._status_effects:
@@ -199,10 +217,20 @@ class GameState:
 
     def get_stats(self) -> str:
         char_info = f"{self._species} {self._title}".strip() if self._species else "Unknown"
+        # Form
+        form_name = self._FORM_NAMES.get(self._form, "")
+        if form_name:
+            char_info += f" ({form_name} Form)"
         hp_str = f"HP: {self._hp}/{self._max_hp}"
         if self._poison_survival and self._poison_survival < self._hp:
             hp_str += f" (→{self._poison_survival} after poison)"
         mp_str = f"MP: {self._mp}/{self._max_mp}"
+        # AC/EV/SH with temp modifiers
+        def _stat_mod(base, mod, name):
+            if mod > 0: return f"{name}: {base} (+{mod})"
+            elif mod < 0: return f"{name}: {base} ({mod})"
+            return f"{name}: {base}"
+        defenses = f"{_stat_mod(self._ac, self._ac_mod, 'AC')} {_stat_mod(self._ev, self._ev_mod, 'EV')} {_stat_mod(self._sh, self._sh_mod, 'SH')}"
         god_str = self._god or "None"
         if self._god:
             piety_stars = "★" * self._piety_rank + "☆" * (6 - self._piety_rank) if self._piety_rank else ""
@@ -219,10 +247,12 @@ class GameState:
             noise_str = f" | Noise: {self._adjusted_noise}"
         status = self._get_status_text()
         status_str = f" | Status: {status}" if status else ""
+        doom_str = f" | Doom: {self._doom}" if self._doom else ""
+        lives_str = f" | Lives: {self._lives}" if self._lives else ""
         return (f"Character: {char_info} | {hp_str} | {mp_str} | "
-                f"AC: {self._ac} EV: {self._ev} SH: {self._sh} | Str: {self._str} Int: {self._int} Dex: {self._dex} | "
+                f"{defenses} | Str: {self._str} Int: {self._int} Dex: {self._dex} | "
                 f"XL: {self._xl} ({self._xl_progress}%) | Gold: {self._gold} | Place: {self._place}:{self._depth} | "
-                f"God: {god_str}{contam_str}{noise_str}{status_str} | Turn: {self._turn}")
+                f"God: {god_str}{contam_str}{noise_str}{doom_str}{lives_str}{status_str} | Turn: {self._turn}")
 
     def get_state_text(self) -> str:
         parts = ["=== DCSS State ===", self.get_stats(), "", "--- Messages ---"]
@@ -234,7 +264,9 @@ class GameState:
             parts.append("--- Inventory ---")
             for item in inv:
                 equip_tag = f" (wielded)" if item.get("equipped") == "weapon" else f" (offhand)" if item.get("equipped") == "offhand" else ""
-                parts.append(f"  {item['slot']}) {item['name']}{equip_tag}")
+                useless_tag = " [useless]" if item.get("useless") else ""
+                inscr_tag = f" {{{item['inscription']}}}" if item.get("inscription") else ""
+                parts.append(f"  {item['slot']}) {item['name']}{equip_tag}{useless_tag}{inscr_tag}")
         enemies = self.get_nearby_enemies()
         if enemies:
             parts.append("")
@@ -242,6 +274,19 @@ class GameState:
             for e in enemies:
                 status_str = f", {e['status']}" if e.get('status') else ""
                 parts.append(f"  {e['name']} ({e['direction']}, dist {e['distance']}, threat {e['threat']}{status_str})")
+        # Environmental effects at player position
+        overlays = self.get_cell_overlays_at()
+        if overlays:
+            env_effects = []
+            if overlays.get("silenced"): env_effects.append("SILENCED (no spells!)")
+            if overlays.get("sanctuary"): env_effects.append("Sanctuary (no combat)")
+            if overlays.get("halo"): env_effects.append("Halo")
+            if overlays.get("liquefied"): env_effects.append("Liquefied ground")
+            if overlays.get("orb_glow"): env_effects.append(f"Orb glow ({overlays['orb_glow']})")
+            if overlays.get("disjunct"): env_effects.append("Disjunction")
+            if env_effects:
+                parts.append("")
+                parts.append(f"--- Environment: {', '.join(env_effects)} ---")
         parts.append("")
         parts.append("--- Map ---")
         parts.append(self.get_map())

@@ -74,6 +74,7 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
         self._map_cells: Dict[Tuple[int, int], str] = {}
         self._tile_fg: Dict[Tuple[int, int], int] = {}
         self._cell_features: Dict[Tuple[int, int], int] = {}
+        self._cell_overlays: Dict[Tuple[int, int], Dict[str, Any]] = {}
         self._monsters: Dict[Tuple[int, int], Dict[str, Any]] = {}
         self._monster_names: Dict[int, str] = {}
 
@@ -102,6 +103,12 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
         self._xl_progress: int = 0
         self._weapon_index: int = -1
         self._offhand_index: int = -1
+        self._ac_mod: int = 0
+        self._ev_mod: int = 0
+        self._sh_mod: int = 0
+        self._doom: int = 0
+        self._lives: int = 0
+        self._deaths: int = 0
 
         # Notepad
         self._notepad: Dict[str, List[str]] = {}
@@ -376,6 +383,12 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
             "progress": "_xl_progress",
             "weapon_index": "_weapon_index",
             "offhand_index": "_offhand_index",
+            "ac_mod": "_ac_mod",
+            "ev_mod": "_ev_mod",
+            "sh_mod": "_sh_mod",
+            "doom": "_doom",
+            "lives": "_lives",
+            "deaths": "_deaths",
         }
         for json_key, attr in field_map.items():
             if json_key in msg:
@@ -426,6 +439,19 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
                     self._map_cells[(cur_x, cur_y)] = cell["g"]
                 if "f" in cell:
                     self._cell_features[(cur_x, cur_y)] = cell["f"]
+                # Store cell overlays (silenced, sanctuary, halo, etc.)
+                overlay_keys = ("silenced", "sanctuary", "halo", "liquefied",
+                                "orb_glow", "quad_glow", "disjunct", "awakened_forest",
+                                "blasphemy", "highlighted_summoner")
+                overlays = {}
+                for ok in overlay_keys:
+                    if ok in cell:
+                        overlays[ok] = cell[ok]
+                if overlays:
+                    self._cell_overlays[(cur_x, cur_y)] = overlays
+                elif (cur_x, cur_y) in self._cell_overlays:
+                    # Clear overlays if cell updated without them
+                    del self._cell_overlays[(cur_x, cur_y)]
                 # Store fg tile flags for behavior/status decoding
                 if "fg" in cell:
                     fg = cell["fg"]
