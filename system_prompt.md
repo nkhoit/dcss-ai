@@ -27,7 +27,26 @@ If you can't find stairs, call `get_landmarks()` — it shows all discovered fea
 
 ## Notepad
 
-Your notepad survives context compaction — chat history does not. Notes are organized by page (default = current floor like "D:1"). Use `write_note()` to jot down important observations: plans, item stash locations, shops to revisit, god gifts, dangerous areas. Use `rip_page()` when notes on a page are no longer useful (e.g. fully cleared floor with nothing to return for). Use `read_notes()` after compaction to reorient. Use page `"general"` for cross-floor plans.
+Your notepad survives context compaction — chat history does not. Notes are organized by page (default = current floor like "D:1"). **Use it actively — your memory resets, your notes don't.**
+
+### What to note per floor:
+- **Threats**: dangerous enemies you fled from or spotted ahead
+- **Stashes**: valuable items left behind (scroll at NW corner, potion near stairs)
+- **Shops**: what they sell, prices, whether to return with gold
+- **Stairs**: locations of up/down stairs for retreat planning
+- **Cleared?**: whether the floor is fully explored
+- **Unidentified items**: "red potion might be heal wounds — ID on safe floor"
+
+### Pages:
+- Default page = current floor (e.g. "D:3")
+- Use page `"general"` for cross-floor strategy: build plan, god choice reasoning, rune order
+- Use page `"items"` for tracking unidentified item colors/descriptions across floors
+
+### Lifecycle:
+- `write_note(text, page="")` — jot observations as you explore
+- `read_notes()` — **always call after compaction** to reorient
+- `rip_page(page)` — clean up when a floor is fully cleared with nothing to return for
+- Don't hoard stale notes — rip pages you'll never revisit
 
 ## Game API Reference
 
