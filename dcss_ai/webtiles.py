@@ -253,8 +253,16 @@ class WebTilesConnection:
     
     def quit_game(self) -> None:
         """Abandon current game (Ctrl-Q + 'yes' to confirm). Deletes save."""
-        # Escape any open menus/prompts first
+        # Clear any blocking prompts first (stat increase, etc.)
+        # Stat prompts can't be escaped — must answer them
         for _ in range(3):
+            msgs = self.recv_messages(timeout=0.3)
+            for msg in msgs:
+                if msg.get("msg") == "msgs" and "entries" in msg:
+                    for e in msg["entries"]:
+                        if "(S)trength" in e.get("text", ""):
+                            self.send_key("s")
+                            time.sleep(0.2)
             self.send_key("key_esc")
             time.sleep(0.1)
         self.recv_messages(timeout=0.3)  # drain
