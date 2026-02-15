@@ -65,6 +65,25 @@ python dcss_ai/driver.py \
 
 The driver connects to DCSS, creates a Copilot session, and plays forever — dying, learning, and restarting. Use `--single` for a one-game test run.
 
+## Testing
+
+Requires Docker. No LLM or API keys needed — tests exercise the game API directly.
+
+```bash
+# Start server, run tests, stop server
+./run.sh server-start
+./run.sh test
+./run.sh server-stop
+```
+
+Or manually:
+```bash
+pip install -r requirements.txt pytest
+docker run -d --name dcss-webtiles -p 8080:8080 ghcr.io/nkhoit/dcss-webtiles:latest
+python -m pytest tests/test_integration.py -v
+docker stop dcss-webtiles && docker rm dcss-webtiles
+```
+
 ## Game API
 
 The `DCSSGame` class provides a clean Python API over the DCSS webtiles protocol.
@@ -131,6 +150,9 @@ dcss-ai/
 │   └── learnings.md       # Persistent knowledge from past games
 ├── server/
 │   └── docker-compose.yml # DCSS webtiles server (nkhoit/dcss-webtiles)
+├── tests/
+│   └── test_integration.py # Integration tests (25 deterministic tests)
+├── run.sh               # Helper script (server-start, server-stop, test)
 └── requirements.txt
 ```
 
