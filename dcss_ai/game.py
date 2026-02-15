@@ -843,24 +843,14 @@ class DCSSGame:
         if not self._ws or not self._in_game:
             return ["Not in game"]
         
-        # Auto-dismiss any open menu/popup before sending game actions
-        # (but not if the keys ARE menu/popup interactions)
+        # Block game actions while a menu/popup is open
         menu_keys = {"key_esc", " ", "key_enter"}
         is_menu_interaction = (len(keys) == 1 and (keys[0] in menu_keys or len(keys[0]) == 1))
-        if (self._current_menu or self._current_popup) and not is_menu_interaction:
-            logger.info(f"Auto-dismissing open menu/popup before _act(keys={keys})")
-            self._ws.send_key("key_esc")
-            # Drain until menu closes
-            close_deadline = time.time() + 2.0
-            while time.time() < close_deadline and (self._current_menu or self._current_popup):
-                msgs = self._ws.recv_messages(timeout=0.2)
-                for msg in msgs:
-                    self._process_msg(msg)
-                    if msg.get("msg") in ("close_menu", "close_all_menus"):
-                        self._current_menu = None
-                        self._menu_items = []
-                    elif msg.get("msg") == "ui-pop":
-                        self._current_popup = None
+        if self._current_menu and not is_menu_interaction:
+            title = self._current_menu.get("title", "a menu")
+            return [f"[ERROR: {title} is still open. Use read_ui() to see it, select_menu_item() to interact, or dismiss() to close it first.]"]
+        if self._current_popup and not is_menu_interaction:
+            return ["[ERROR: A popup is still open. Use read_ui() to see it or dismiss() to close it first.]"]
         
         msg_start = len(self._messages)
         
