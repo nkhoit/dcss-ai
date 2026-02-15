@@ -55,14 +55,16 @@ class DCSSDriver:
         signal.signal(signal.SIGINT, self._signal_handler)
         signal.signal(signal.SIGTERM, self._signal_handler)
         self._loop = None
+        self._shutdown = False
+        self._active_session = None
 
     def _signal_handler(self, signum, frame):
-        self.logger.info(f"Received signal {signum}, shutting down after current action...")
+        self.logger.info(f"Received signal {signum}, shutting down...")
         self.running = False
-        # Cancel all running tasks to break out of blocking awaits
-        if self._loop:
-            for task in asyncio.all_tasks(self._loop):
-                task.cancel()
+        self._shutdown = True
+        # Signal the active session to stop
+        if self._active_session and hasattr(self._active_session, '_shutdown'):
+            self._active_session._shutdown = True
 
     async def connect_to_dcss(self) -> bool:
         """Connect to DCSS server."""
@@ -95,6 +97,7 @@ class DCSSDriver:
         tools = build_tools(self.dcss)
 
         session = await self.provider.create_session(system_prompt, tools, self.config["model"])
+        self._active_session = session
 
         # Track tool activity to detect hangs
         SILENT_TIMEOUT = self.config["silent_timeout"]

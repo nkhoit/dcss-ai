@@ -88,6 +88,7 @@ class CopilotSession(LLMSession):
         self.last_delta_time = time.time()
         self.last_tool_time = time.time()
         self._silent_tool_calls = 0  # tool calls with no text narration
+        self._shutdown = False  # set by driver on Ctrl+C
         
         # Set up event handling
         self.session.on(self._handle_event)
@@ -139,6 +140,20 @@ class CopilotSession(LLMSession):
             silent_limit = 60  # seconds of no output = stuck
             while not task.done():
                 await asyncio.sleep(1)
+                
+                # Check for shutdown signal
+                if self._shutdown:
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+                    return SessionResult(
+                        completed=False,
+                        text="",
+                        usage=self.usage_totals.copy()
+                    )
+                
                 since_delta = time.time() - self.last_delta_time
                 since_tool = time.time() - self.last_tool_time
                 last_activity = min(since_delta, since_tool)
