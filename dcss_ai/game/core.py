@@ -63,6 +63,7 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
         self._session_ended = False
         self._species = ""
         self._title = ""
+        self._consecutive_timeouts = 0
 
         # Inventory
         self._inventory: Dict[int, Dict[str, Any]] = {}
@@ -282,7 +283,28 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
                 break
 
         if not got_input and not self._is_dead:
-            logger.warning(f"_act finished without input_mode=1! keys={keys}, timeout={timeout}")
+            self._consecutive_timeouts += 1
+            logger.warning(f"_act finished without input_mode=1! keys={keys}, timeout={timeout}, consecutive={self._consecutive_timeouts}")
+            if self._consecutive_timeouts >= 3:
+                logger.warning(f"3+ consecutive timeouts — sending recovery escapes to clear phantom UI")
+                for _ in range(3):
+                    self._ws.send_key("key_esc")
+                    time.sleep(0.1)
+                # Drain any responses from the escapes
+                recovery_msgs = self._ws.recv_messages(timeout=1.0)
+                for msg in recovery_msgs:
+                    self._process_msg(msg)
+                    mt = msg.get("msg")
+                    if mt == "ui-pop":
+                        self._current_popup = None
+                        logger.info("Recovery: dismissed phantom popup")
+                    elif mt in ("close_menu", "close_all_menus"):
+                        self._current_menu = None
+                        self._menu_items = []
+                        logger.info("Recovery: closed phantom menu")
+                self._consecutive_timeouts = 0
+        else:
+            self._consecutive_timeouts = 0
 
         new_msgs = self._messages[msg_start:]
 
