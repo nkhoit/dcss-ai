@@ -7,7 +7,6 @@ import time
 from typing import Optional, List, Dict, Tuple, Any
 
 from dcss_ai.webtiles import WebTilesConnection
-from dcss_ai.overlay import send_stats, send_thought, send_reset
 
 from .state import GameState
 from .actions import GameActions
