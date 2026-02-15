@@ -197,8 +197,8 @@ class DCSSDriver:
 
         # Initialize LLM provider
         self.provider = get_provider(self.config["provider"], 
-                                      base_url=getattr(self.args, 'base_url', None),
-                                      api_key=getattr(self.args, 'api_key', None))
+                                      base_url=self.config.get("base_url"),
+                                      api_key=self.config.get("api_key"))
         await self.provider.start()
         self.logger.info(f"LLM provider '{self.config["provider"]}' connected")
 
