@@ -173,7 +173,9 @@ class DCSSDriver:
         self.logger.info("Starting DCSS AI Driver")
 
         # Initialize LLM provider
-        self.provider = get_provider(self.args.provider)
+        self.provider = get_provider(self.args.provider, 
+                                      base_url=getattr(self.args, 'base_url', None),
+                                      api_key=getattr(self.args, 'api_key', None))
         await self.provider.start()
         self.logger.info(f"LLM provider '{self.args.provider}' connected")
 
@@ -225,7 +227,11 @@ async def main():
     parser.add_argument("--password", default="kurobot123",
                         help="DCSS server password")
     parser.add_argument("--provider", default="copilot",
-                        help="LLM provider to use (default: copilot)")
+                        help="LLM provider to use (copilot, openai)")
+    parser.add_argument("--base-url", default=None,
+                        help="Base URL for OpenAI-compatible provider (e.g. https://ollama.example.com/v1)")
+    parser.add_argument("--api-key", default=None,
+                        help="API key for OpenAI-compatible provider")
     parser.add_argument("--model", default="claude-sonnet-4",
                         help="Model to use")
     parser.add_argument("--single", action="store_true",

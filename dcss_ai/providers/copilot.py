@@ -57,12 +57,15 @@ def _create_pydantic_model(tool_def: Dict[str, Any]) -> type:
 
 def _make_copilot_tool(name: str, description: str, handler, param_model):
     """Create a Copilot tool function with properly captured closure variables."""
-    @define_tool(description=description)
-    def tool_func(params: param_model) -> str:
-        params_dict = params.dict() if hasattr(params, 'dict') else params.__dict__
-        return handler(params_dict)
-    tool_func.__name__ = name
-    return tool_func
+    # We need the function name set BEFORE @define_tool captures it
+    def make_inner():
+        def tool_fn(params: param_model) -> str:
+            params_dict = params.dict() if hasattr(params, 'dict') else params.__dict__
+            return handler(params_dict)
+        tool_fn.__name__ = name
+        tool_fn.__qualname__ = name
+        return define_tool(description=description)(tool_fn)
+    return make_inner()
 
 
 class CopilotSession(LLMSession):
