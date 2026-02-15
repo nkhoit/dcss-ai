@@ -63,7 +63,7 @@ class StartGameParams(BaseModel):
     weapon_key: str = Field(default="", description="Weapon key if prompted (a/b/etc, leave empty for auto)")
 
 class MapParams(BaseModel):
-    radius: int = Field(default=7, description="Map view radius")
+    radius: int = Field(default=15, description="Map view radius (default 15)")
 
 class MessagesParams(BaseModel):
     n: int = Field(default=10, description="Number of recent messages to return")
@@ -165,7 +165,7 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         "parameters": {
             "type": "object",
             "properties": {
-                "radius": {"type": "integer", "description": "Map view radius", "default": 7}
+                "radius": {"type": "integer", "description": "Map view radius", "default": 15}
             },
             "required": []
         },

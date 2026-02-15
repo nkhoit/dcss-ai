@@ -23,7 +23,7 @@ If you can't find stairs, call `get_landmarks()` — it shows all discovered fea
 ### Free Actions (no turn cost)
 ```
 get_state_text()          # Full game state: stats, messages, enemies, inventory, map
-get_map(radius=7)         # ASCII map centered on @ (you)
+get_map(radius=15)        # ASCII map centered on @ (you), shows explored tiles
 get_landmarks()           # Find stairs/altars on explored map (even out of view!)
 get_inventory()           # List of items: [{slot, name, quantity}, ...]
 get_nearby_enemies()      # List of enemies: [{name, direction, distance, threat}, ...]
