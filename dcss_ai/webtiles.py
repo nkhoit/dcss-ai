@@ -238,31 +238,33 @@ class WebTilesConnection:
         raise RuntimeError("Timeout starting game")
     
     def quit_game(self) -> None:
-        """Quit current game (Ctrl-Q + confirm)."""
+        """Abandon current game (Ctrl-Q + 'yes' to confirm). Deletes save."""
         # Escape any open menus/prompts first
         for _ in range(3):
             self.send_key("key_esc")
             time.sleep(0.1)
+        self.recv_messages(timeout=0.5)  # drain
         
+        # Send Ctrl+Q to trigger "Really quit?" prompt
         self.send_key("key_ctrl_q")
-        time.sleep(0.3)
-        # Drain to see what prompt we get
-        msgs = self.recv_messages(timeout=1.0)
+        time.sleep(0.5)
+        self.recv_messages(timeout=0.5)  # drain prompt
         
-        # May need to type "yes" or "quit" depending on version
-        self.send_key("yes")
+        # Type "yes" as individual characters then Enter
+        for ch in "yes":
+            self.send_key(ch)
+            time.sleep(0.05)
         self.send_key("key_enter")
-        time.sleep(0.3)
+        time.sleep(0.5)
         
-        # Clear any remaining prompts
-        for _ in range(5):
+        # Wait for lobby
+        for _ in range(10):
             msgs = self.recv_messages(timeout=0.5)
-            if not msgs:
-                break
             for msg in msgs:
                 if msg.get("msg") == "go_lobby":
                     return
-            self.send_key("key_esc")
+            if not msgs:
+                break
     
     def save_game(self) -> None:
         """Save and exit to lobby (Ctrl-S)."""

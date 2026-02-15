@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
 from typing import Optional, List, Dict, Tuple, Any
 from dcss_ai.webtiles import WebTilesConnection
@@ -103,15 +102,28 @@ class DCSSGame:
             raise RuntimeError(f"Connection failed: {e}")
     
     def start_game(self, species_key: str, background_key: str, weapon_key: str = "", game_id: str = "") -> str:
-        """Start a new game, deleting any stale saves first. Returns initial state."""
+        """Start a new game, abandoning any stale saves first. Returns initial state."""
         if not self._connected or not self._ws:
             raise RuntimeError("Not connected to server")
         
-        # Delete any existing save to ensure a fresh game
-        self._delete_save()
+        # Abandon any existing save
+        if self._in_game:
+            self.quit_game()
         
         gid = game_id or self._game_ids[0]
         startup_msgs = self._ws.start_game(gid, species_key, background_key, weapon_key)
+        
+        # Check if we resumed a save instead of creating new character
+        had_newgame = any(m.get("msg") == "ui-state" and m.get("type") == "newgame-choice"
+                         for m in startup_msgs)
+        if not had_newgame:
+            # Stale save — abandon it and retry
+            logger.info("Stale save detected, abandoning...")
+            self._in_game = True
+            self.quit_game()
+            time.sleep(0.5)
+            self._ws.recv_messages(timeout=1.0)  # drain lobby messages
+            startup_msgs = self._ws.start_game(gid, species_key, background_key, weapon_key)
         
         # Process all startup messages
         for msg in startup_msgs:
@@ -132,20 +144,6 @@ class DCSSGame:
         
         return self.get_state_text()
     
-    def _delete_save(self):
-        """Delete any existing save file from the DCSS Docker container."""
-        try:
-            # Save files are at /app/.<username>.cs in the container
-            container = os.environ.get("DCSS_CONTAINER", "dcss-webtiles")
-            username = getattr(self, '_username', 'dcssai')
-            subprocess.run(
-                ["docker", "exec", container, "rm", "-f", f"/app/.{username}.cs"],
-                capture_output=True, timeout=5
-            )
-            logger.info(f"Deleted save file for {username}")
-        except Exception as e:
-            logger.warning(f"Could not delete save: {e}")
-
     def quit_game(self):
         """Quit current game."""
         if self._in_game and self._ws:
