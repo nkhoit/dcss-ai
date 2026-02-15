@@ -123,10 +123,8 @@ class DCSSDriver:
         )
 
         continue_prompt = (
-            "You MUST call a tool now. You went silent without "
-            "calling any tool. Call get_state_text() to check the game, then take an action. "
-            "Do NOT just narrate — every response needs a tool call. "
-            "If the game is over, call record_death() or record_win()."
+            "You are autonomous — there is no human to respond. NEVER say 'let me know' or wait for input. "
+            "Call get_stats() to check your state, then keep playing. Do NOT stop until the game ends."
         )
 
         try:
@@ -178,7 +176,10 @@ class DCSSDriver:
                                 )
                             else:
                                 self.logger.info(f"SDK session completed, game still active — nudging ({nudge_count})...")
-                                prompt = "You stopped without calling a tool. You MUST call a tool every turn. Call get_stats() to check your state, then take an action."
+                                prompt = (
+                                    "The game is still in progress. You are autonomous — DO NOT stop playing. "
+                                    "DO NOT ask for user input. Call a tool and keep going."
+                                )
                             continue
                     else:
                         # Timeout or other failure
