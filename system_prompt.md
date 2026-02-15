@@ -20,7 +20,7 @@ If you can't find stairs, call `get_landmarks()` — it shows all discovered fea
 
 ## Notepad
 
-Your notepad survives context compaction — chat history does not. Notes are organized by page (default = current floor like "D:1"). Use `write_note()` to jot down important observations: plans, item stash locations, shops to revisit, god gifts, dangerous areas. Use `rip_page("D:1")` when you leave a floor and don't need those notes anymore. Use `read_notes()` after compaction to reorient. Use page `"general"` for cross-floor plans.
+Your notepad survives context compaction — chat history does not. Notes are organized by page (default = current floor like "D:1"). Use `write_note()` to jot down important observations: plans, item stash locations, shops to revisit, god gifts, dangerous areas. Use `rip_page()` when notes on a page are no longer useful (e.g. fully cleared floor with nothing to return for). Use `read_notes()` after compaction to reorient. Use page `"general"` for cross-floor plans.
 
 ## Game API Reference
 

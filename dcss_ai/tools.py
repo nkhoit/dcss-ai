@@ -212,7 +212,7 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     
     tools.append({
         "name": "rip_page",
-        "description": "Remove a page from the notepad. Use when leaving a floor and notes are no longer relevant.",
+        "description": "Remove a page from the notepad. Use when the notes are no longer relevant (e.g. fully cleared floor, bought everything from a shop).",
         "parameters": {
             "type": "object",
             "properties": {
