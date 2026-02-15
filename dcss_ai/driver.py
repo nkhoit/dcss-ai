@@ -379,7 +379,10 @@ class DCSSDriver:
             },
         })
 
-        # Log streaming output
+        # Track tool activity to detect hangs
+        last_tool_call = [0.0]  # mutable ref for closure
+        import time as _time
+
         def handle_event(event):
             if event.type == SessionEventType.ASSISTANT_MESSAGE_DELTA:
                 sys.stdout.write(event.data.delta_content)
@@ -387,30 +390,68 @@ class DCSSDriver:
             elif event.type == SessionEventType.ASSISTANT_MESSAGE:
                 sys.stdout.write("\n")
                 sys.stdout.flush()
+            elif event.type == SessionEventType.TOOL_CALL:
+                last_tool_call[0] = _time.time()
 
         session.on(handle_event)
 
-        try:
-            # Kick off the game
-            self.logger.info(f"Starting game session (attempt #{self.dcss._attempt + 1})")
-            await session.send_and_wait({
-                "prompt": (
-                    "Start a new DCSS game. Call new_attempt() first, then start_game(). "
-                    "Try different species/background combos — experiment! Don't always pick "
-                    "the same build. Learn what works and what doesn't. Record build choices "
-                    "in your learnings. "
-                    "Play the game — explore, fight, survive. "
-                    "Call update_overlay() with a brief thought after every action. "
-                    "When you die, call record_death() with the cause and reflect on what "
-                    "went wrong — then call write_learning() for each lesson. "
-                    "If you win, call record_win() and call write_learning() with what worked. "
-                    "Then say GAME_OVER."
-                )
-            }, timeout=7200)  # 2 hour timeout — games can be long
+        TURN_TIMEOUT = 120  # seconds — max time to wait for a tool call
+        MAX_RETRIES = 3     # consecutive timeouts before giving up
 
-            # The agent will use tools in a loop until the game ends.
-            # The session stays alive as long as the agent is making tool calls.
-            # When it says GAME_OVER or stops calling tools, send_and_wait returns.
+        kickoff_prompt = (
+            "Start a new DCSS game. Call new_attempt() first, then start_game(). "
+            "Try different species/background combos — experiment! Don't always pick "
+            "the same build. Learn what works and what doesn't. Record build choices "
+            "in your learnings. "
+            "Play the game — explore, fight, survive. "
+            "Call update_overlay() with a brief thought after every action. "
+            "When you die, call record_death() with the cause and reflect on what "
+            "went wrong — then call write_learning() for each lesson. "
+            "If you win, call record_win() and call write_learning() with what worked. "
+            "Then say GAME_OVER."
+        )
+
+        continue_prompt = (
+            "Continue playing. You stopped responding — check the game state with "
+            "get_state_text() and keep going. If the game is over, call record_death() "
+            "or record_win(), write_learning(), and say GAME_OVER."
+        )
+
+        try:
+            self.logger.info(f"Starting game session (attempt #{self.dcss._attempt + 1})")
+            prompt = kickoff_prompt
+            retries = 0
+
+            while self.running and retries < MAX_RETRIES:
+                last_tool_call[0] = _time.time()
+                self.logger.info("Sending prompt to LLM...")
+
+                try:
+                    await asyncio.wait_for(
+                        session.send_and_wait({"prompt": prompt}, timeout=7200),
+                        timeout=TURN_TIMEOUT
+                    )
+                    # Normal completion — game ended
+                    break
+                except asyncio.TimeoutError:
+                    elapsed = _time.time() - last_tool_call[0]
+                    if elapsed > TURN_TIMEOUT * 0.8:
+                        # No tool calls during the timeout — SDK is hung
+                        retries += 1
+                        self.logger.warning(
+                            f"LLM hung — no tool calls for {elapsed:.0f}s "
+                            f"(retry {retries}/{MAX_RETRIES})"
+                        )
+                        prompt = continue_prompt
+                    else:
+                        # Tool calls happened but send_and_wait didn't finish
+                        # — game is still going, just long-running
+                        retries = 0
+                        self.logger.info("Game still in progress, continuing...")
+                        prompt = continue_prompt
+
+            if retries >= MAX_RETRIES:
+                self.logger.error(f"LLM hung {MAX_RETRIES} times in a row, abandoning game")
 
             self.logger.info(f"Game session ended. Deaths: {self.dcss._deaths}, Wins: {self.dcss._wins}")
 
