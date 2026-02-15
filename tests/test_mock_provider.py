@@ -78,6 +78,7 @@ class TestMockProvider:
             assert dcss.turn > 0  # auto_explore advanced turns
 
             # Third send: record_death → stop (completed)
+            dcss._is_dead = True  # simulate server death signal
             r3 = await session.send("Continue")
             assert r3.completed
             assert dcss._deaths >= 1

@@ -198,6 +198,7 @@ class TestOverlay:
 
     def test_record_death(self, game):
         before = game._deaths
+        game._is_dead = True  # simulate server death signal
         game.record_death("test")
         assert game._deaths == before + 1
 
