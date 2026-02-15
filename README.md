@@ -122,25 +122,6 @@ The `DCSSGame` class provides a clean Python API over the DCSS webtiles protocol
 | `new_attempt()` | Increment attempt counter |
 | `record_death(cause)` / `record_win()` | Track game outcomes |
 
-## Project Structure
-
-```
-dcss-ai/
-├── dcss_ai/
-│   ├── driver.py          # Autonomous driver (Copilot SDK, game loop)
-│   ├── game.py            # DCSSGame — high-level game API
-│   ├── webtiles.py        # Pure Python WebSocket client for DCSS protocol
-│   ├── system_prompt.md   # System prompt for the playing agent
-│   ├── sandbox.py         # Restricted Python execution (REPL mode)
-│   └── server.py          # MCP server (experimental)
-├── server/
-│   └── docker-compose.yml # DCSS webtiles server (nkhoit/dcss-webtiles)
-├── tests/
-│   └── test_integration.py # Integration tests (25 deterministic tests)
-├── run.sh               # Helper script (server-start, server-stop, test)
-└── requirements.txt
-```
-
 ## Credits
 
 - [DCSS](https://github.com/crawl/crawl) — Dungeon Crawl Stone Soup
