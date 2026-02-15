@@ -57,11 +57,18 @@ def _create_pydantic_model(tool_def: Dict[str, Any]) -> type:
 
 def _make_copilot_tool(name: str, description: str, handler, param_model):
     """Create a Copilot tool function with properly captured closure variables."""
-    # We need the function name set BEFORE @define_tool captures it
+    _log = logging.getLogger("dcss_ai")
     def make_inner():
         def tool_fn(params: param_model) -> str:
             params_dict = params.dict() if hasattr(params, 'dict') else params.__dict__
-            return handler(params_dict)
+            # Filter out None/empty params for cleaner logs
+            args_str = ", ".join(f"{k}={v!r}" for k, v in params_dict.items() if v is not None and v != "")
+            _log.debug(f"🔧 {name}({args_str})")
+            result = handler(params_dict)
+            # Truncate long results for readability
+            result_preview = result if len(result) < 200 else result[:200] + "..."
+            _log.debug(f"  → {result_preview}")
+            return result
         tool_fn.__name__ = name
         tool_fn.__qualname__ = name
         return define_tool(description=description)(tool_fn)

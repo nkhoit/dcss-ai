@@ -26,6 +26,9 @@ DEFAULTS = {
     "silent_timeout": 60,   # seconds with no output = stuck
     "max_retries": 5,       # consecutive timeouts before abandoning game
     "turn_timeout": 120,    # per-turn timeout (seconds)
+
+    # Debug
+    "debug": False,         # enable DEBUG-level logging (tool calls, etc.)
 }
 
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"

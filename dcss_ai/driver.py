@@ -46,7 +46,7 @@ class DCSSDriver:
         os.environ["DCSS_NARRATE_INTERVAL"] = str(config["narrate_interval"])
 
         logging.basicConfig(
-            level=logging.INFO,
+            level=logging.DEBUG if config.get("debug") else logging.INFO,
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[logging.StreamHandler(sys.stdout)]
         )
@@ -311,6 +311,8 @@ async def main():
                         help="Play one game then exit")
     parser.add_argument("--narrate-interval", dest="narrate_interval", type=int, default=None,
                         help=f"Actions between forced narrations, 0=disable (default: {DEFAULTS['narrate_interval']})")
+    parser.add_argument("--debug", action="store_true", default=False,
+                        help="Enable debug logging (tool calls, etc.)")
     args = parser.parse_args()
 
     # store_true gives False not None — only override if explicitly set
@@ -319,6 +321,10 @@ async def main():
         cli_dict["single"] = True
     else:
         cli_dict.pop("single", None)
+    if args.debug:
+        cli_dict["debug"] = True
+    else:
+        cli_dict.pop("debug", None)
 
     config = load_config(cli_dict)
     driver = DCSSDriver(config)
