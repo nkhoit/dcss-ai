@@ -142,6 +142,9 @@ class DCSSGame:
             logger.info("Stale save detected, abandoning...")
             self._in_game = True
             self.quit_game()
+            # Bump attempt to trigger overlay iframe reload
+            self._attempt += 1
+            self.update_overlay("Clearing stale save, restarting...")
             time.sleep(0.5)
             self._ws.recv_messages(timeout=1.0)  # drain lobby messages
             startup_msgs = self._ws.start_game(gid, species_key, background_key, weapon_key)
