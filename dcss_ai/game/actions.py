@@ -17,7 +17,12 @@ class GameActions:
         turn_before = self._turn
         result = self._act(key_map[d])
         if self._turn == turn_before:
-            result.append(f"[Nothing happened \u2014 there's a wall or obstacle to the {direction}. Use auto_explore() or go_downstairs() to navigate.]")
+            self._consecutive_failed_moves += 1
+            if self._consecutive_failed_moves >= 3:
+                return [f"[ERROR: {self._consecutive_failed_moves} consecutive failed moves. STOP using move() for navigation. Use auto_explore() to explore or go_downstairs() to travel to stairs. move() is ONLY for combat — attacking adjacent enemies.]"]
+            result.append(f"[Nothing happened — there's a wall or obstacle to the {direction}. Use auto_explore() or go_downstairs() to navigate.]")
+        else:
+            self._consecutive_failed_moves = 0
         return result
 
     def attack(self, direction: str) -> List[str]:

@@ -64,6 +64,7 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
         self._species = ""
         self._title = ""
         self._consecutive_timeouts = 0
+        self._consecutive_failed_moves = 0
 
         # Inventory
         self._inventory: Dict[int, Dict[str, Any]] = {}
