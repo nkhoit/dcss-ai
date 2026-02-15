@@ -235,11 +235,16 @@ class WebTilesConnection:
                 mt = msg.get("msg")
                 if mt == "map":
                     got_map = True
-                elif mt == "ui-state" and msg.get("type") == "newgame-choice" and choice_idx < len(choices):
-                    # Character creation menu — send next choice
-                    logger.debug(f"Newgame choice #{choice_idx}: sending '{choices[choice_idx]}'")
-                    self.send_key(choices[choice_idx])
-                    choice_idx += 1
+                elif mt == "ui-state" and msg.get("type") == "newgame-choice":
+                    # Character creation menu — send next choice or default
+                    if choice_idx < len(choices):
+                        logger.debug(f"Newgame choice #{choice_idx}: sending '{choices[choice_idx]}'")
+                        self.send_key(choices[choice_idx])
+                        choice_idx += 1
+                    else:
+                        # Extra prompt (e.g. weapon) — pick first option
+                        logger.debug(f"Extra newgame choice (menu={msg.get('menu_id','')}), sending 'a'")
+                        self.send_key("a")
             
             if got_map:
                 return all_msgs
