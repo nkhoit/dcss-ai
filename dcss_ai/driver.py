@@ -285,7 +285,7 @@ def build_dcss_tools(dcss: DCSSGame) -> list:
 
     # --- Learnings ---
 
-    learnings_path = Path(__file__).parent.parent / "skill" / "learnings.md"
+    learnings_path = Path(__file__).parent.parent / "learnings.md"
 
     @define_tool(description="Append a lesson to learnings.md. Call after every death AND every win. Be specific: what happened, why, what to do differently. These persist across all future games.")
     def write_learning(params: LearningParams) -> str:
@@ -355,7 +355,7 @@ class DCSSDriver:
         with open(prompt_path, 'r') as f:
             system_prompt = f.read()
 
-        learnings_path = Path(__file__).parent.parent / "skill" / "learnings.md"
+        learnings_path = Path(__file__).parent.parent / "learnings.md"
         if learnings_path.exists():
             with open(learnings_path, 'r') as f:
                 learnings = f.read()
