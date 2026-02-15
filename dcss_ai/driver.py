@@ -95,9 +95,10 @@ class DCSSDriver:
         )
 
         continue_prompt = (
-            "Continue playing. You stopped responding — check the game state with "
-            "get_state_text() and keep going. If the game is over, call record_death() "
-            "or record_win(), write_learning(), and say GAME_OVER."
+            "You MUST call a tool now. You stopped responding for 120 seconds without "
+            "calling any tool. Call get_state_text() to check the game, then take an action. "
+            "Do NOT just narrate — every response needs a tool call. "
+            "If the game is over, call record_death() or record_win()."
         )
 
         try:
