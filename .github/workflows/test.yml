@@ -25,11 +25,21 @@ jobs:
       - name: Start DCSS server
         run: |
           cd server && docker compose up -d
-          # Wait for server to be ready
-          for i in $(seq 1 30); do
-            curl -s http://localhost:8080 > /dev/null && break
-            sleep 1
-          done
+          # Wait for WebSocket to accept connections
+          pip install websockets -q
+          python -c "
+          import time, websockets.sync.client as ws
+          for i in range(60):
+              try:
+                  c = ws.connect('ws://localhost:8080/socket', open_timeout=2)
+                  c.close()
+                  print(f'Server ready after {i+1}s')
+                  break
+              except Exception:
+                  time.sleep(1)
+          else:
+              raise RuntimeError('DCSS server failed to start')
+          "
 
       - name: Run tests
         run: python -m pytest tests/test_integration.py -v
