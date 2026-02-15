@@ -47,8 +47,10 @@ class DCSSDriver:
         signal.signal(signal.SIGTERM, self._signal_handler)
 
     def _signal_handler(self, signum, frame):
-        self.logger.info(f"Received signal {signum}, shutting down gracefully...")
+        self.logger.info(f"Received signal {signum}, shutting down after current action...")
         self.running = False
+        # Raise KeyboardInterrupt to break out of blocking awaits
+        raise KeyboardInterrupt
 
     async def connect_to_dcss(self) -> bool:
         """Connect to DCSS server."""
@@ -196,35 +198,65 @@ class DCSSDriver:
             return 1
 
         game_count = 0
+        start_time = _time.time()
 
-        while self.running:
-            try:
-                game_count += 1
-                self.logger.info(f"=== Game #{game_count} ===")
+        try:
+            while self.running:
+                try:
+                    game_count += 1
+                    self.logger.info(f"=== Game #{game_count} ===")
 
-                await self.run_game_session()
+                    await self.run_game_session()
 
-                # Brief pause between games
-                if self.running:
-                    if self.args.single:
-                        self.logger.info("Single game mode, exiting")
-                        break
-                    self.logger.info("Starting next game in 5 seconds...")
-                    await asyncio.sleep(5)
+                    # Brief pause between games
+                    if self.running:
+                        if self.args.single:
+                            self.logger.info("Single game mode, exiting")
+                            break
+                        self.logger.info("Starting next game in 5 seconds...")
+                        await asyncio.sleep(5)
 
-            except Exception as e:
-                self.logger.error(f"Error in game loop: {e}")
-                if self.running:
-                    self.logger.info("Retrying in 30 seconds...")
-                    await asyncio.sleep(30)
+                except KeyboardInterrupt:
+                    break
+                except Exception as e:
+                    self.logger.error(f"Error in game loop: {e}")
+                    if self.running:
+                        self.logger.info("Retrying in 30 seconds...")
+                        await asyncio.sleep(30)
 
-            # Reconnect if needed
-            if self.running and not self.dcss._connected:
-                self.logger.warning("DCSS connection lost, reconnecting...")
-                await self.connect_to_dcss()
+                # Reconnect if needed
+                if self.running and not self.dcss._connected:
+                    self.logger.warning("DCSS connection lost, reconnecting...")
+                    await self.connect_to_dcss()
 
-        self.logger.info("Shutting down driver")
+        except KeyboardInterrupt:
+            pass
+
+        # --- Session summary ---
+        elapsed = _time.time() - start_time
+        hours, rem = divmod(int(elapsed), 3600)
+        mins, secs = divmod(rem, 60)
+        print(f"\n{'='*50}")
+        print(f"  DCSS AI Driver — Session Summary")
+        print(f"{'='*50}")
+        print(f"  Games played:  {game_count}")
+        print(f"  Deaths:        {self.dcss._deaths}")
+        print(f"  Wins:          {self.dcss._wins}")
+        print(f"  Runtime:       {hours}h {mins}m {secs}s")
+        print(f"  Model:         {self.args.model}")
+        print(f"{'='*50}\n")
+
+        # Clean up game
+        try:
+            if self.dcss._in_game:
+                self.logger.info("Quitting current game...")
+                self.dcss.quit_game()
+        except Exception:
+            pass
+
+        self.dcss.disconnect()
         await self.provider.stop()
+        self.logger.info("Driver stopped.")
         return 0
 
 
