@@ -536,8 +536,12 @@ class DCSSGame:
                     elif mode == 7:
                         self._is_dead = True
                         self._in_game = False
+                    elif mode == 0:
+                        # Travelling/auto-explore in progress — wait for it
+                        pass
                     else:
-                        # Unknown menu/mode — escape out of it
+                        # Unknown menu/mode (spell list, inventory view, etc.) — escape out
+                        logger.debug(f"Auto-escaping unknown input_mode={mode}")
                         self._ws.send_key("key_esc")
                 elif mt == "player":
                     got_player = True
