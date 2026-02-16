@@ -46,6 +46,9 @@ class GameActions:
         return result
 
     def auto_fight(self) -> List[str]:
+        enemies = self.get_nearby_enemies()
+        if not enemies:
+            return ["No enemies in sight. Use auto_explore() to keep moving."]
         return self._act("key_tab")
 
     def rest(self) -> List[str]:
@@ -106,6 +109,11 @@ class GameActions:
             return None
 
     def pickup(self) -> List[str]:
+        # Check if there are items at current position
+        px, py = self._position
+        items_here = self._items.get((px, py), []) if hasattr(self, '_items') else []
+        if not items_here:
+            return ["Nothing to pick up here."]
         msgs = self._act(",")
         if self._current_menu:
             msgs.append("[A pickup menu opened \u2014 use read_ui() to see items, select_menu_item() to pick specific items, or dismiss() to cancel]")
@@ -170,6 +178,8 @@ class GameActions:
         return self._act("d", key)
 
     def pray(self) -> List[str]:
+        if not self._god or self._god.lower() in ("", "none", "no god"):
+            return ["You don't worship a god. Find an altar and use it to join a religion."]
         return self._act("p")
 
     def choose_stat(self, stat: str) -> List[str]:
