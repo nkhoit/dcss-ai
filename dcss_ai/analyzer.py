@@ -105,11 +105,24 @@ def _parse_analyzer_response(response: str) -> Optional[dict]:
             lines = lines[:-1]
         text = "\n".join(lines)
 
+    # Try direct parse first
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        logger.warning(f"Failed to parse analyzer response as JSON: {text[:200]}")
-        return None
+        pass
+
+    # Try to extract JSON object from mixed content
+    # Find first { and last }
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            pass
+
+    logger.warning(f"Failed to parse analyzer response as JSON: {text[:200]}")
+    return None
 
 
 class DeathAnalyzer:
@@ -225,6 +238,10 @@ class DeathAnalyzer:
     def _apply_llm_learnings(self, analysis: dict) -> None:
         """Apply LLM-extracted learnings to knowledge base."""
         learnings = analysis.get("learnings", [])
+        if not learnings:
+            # Log what keys we got so we can debug schema mismatches
+            logger.info(f"Analyzer response keys: {list(analysis.keys())} (no 'learnings' key found)")
+            return
         for learning in learnings:
             category = learning.get("category", "tactics")
             key = learning.get("key", "unknown")
