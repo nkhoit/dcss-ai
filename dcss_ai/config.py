@@ -14,7 +14,7 @@ DEFAULTS = {
 
     # LLM provider
     "provider": "copilot",
-    "model": "claude-sonnet-4",
+    "model": "claude-sonnet-4.5",
     "base_url": None,
     "api_key": None,
 
@@ -35,7 +35,7 @@ DEFAULTS = {
 
     # Post-death analyzer
     "analyzer_enabled": True,           # LLM-based death analysis
-    "analyzer_model": "claude-haiku-4.5",  # cheap model for analysis
+    "analyzer_model": "claude-sonnet-4.5",  # model for analysis
 }
 
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"

@@ -390,6 +390,7 @@ class DCSSDriver:
         """Main loop - runs games forever until interrupted."""
         self._loop = asyncio.get_running_loop()
         self.logger.info("Starting DCSS AI Driver")
+        self.logger.info(f"Config: provider={self.config['provider']}, model={self.config['model']}, analyzer_model={self.config.get('analyzer_model', 'default')}")
 
         # Start overlay SSE server
         from dcss_ai.overlay import start_server as start_sse
