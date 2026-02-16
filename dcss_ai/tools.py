@@ -164,75 +164,62 @@ def _make_handler(dcss: DCSSGame, method_name: str, param_model: type, *args, **
 
 
 def _use_item_handler(dcss: DCSSGame, key: str) -> str:
-    """Smart item handler that routes to the appropriate action based on item type."""
+    """Smart item handler that routes to the appropriate action based on item type.
+    
+    Uses base_type from raw DCSS inventory data for reliable type detection.
+    DCSS base_type: 0=weapon, 1=missile, 2=armour, 3=wand, 5=scroll,
+                    6=jewellery, 7=potion, 8=book, 9=staff, 10=orb, 11=misc
+    """
     try:
-        inventory = dcss.get_inventory()
-        if not inventory:
-            return "No inventory available."
+        # Convert slot letter to numeric index
+        if len(key) == 1 and key.isalpha():
+            slot_idx = ord(key.lower()) - ord('a')
+        else:
+            return f"Invalid slot key '{key}'."
         
-        # Find the item by slot
-        target_item = None
-        for item in inventory:
-            if item.get("slot") == key:
-                target_item = item
-                break
-        
-        if not target_item:
+        # Get raw inventory data (has base_type)
+        raw_item = dcss._inventory.get(slot_idx)
+        if not raw_item:
             return f"No item in slot {key}."
         
-        item_name = target_item.get("name", "").lower()
+        item_name = raw_item.get("name", "unknown")
+        base_type = raw_item.get("base_type")
+        equipped = raw_item.get("equipped")
         
-        # Determine action based on item type
-        # Weapons
-        if any(weapon_type in item_name for weapon_type in [
-            "sword", "blade", "dagger", "knife", "rapier", "sabre", "scimitar", 
-            "axe", "hand axe", "war axe", "battleaxe", "broad axe",
-            "club", "mace", "flail", "morningstar", "hammer", "maul", 
-            "spear", "trident", "glaive", "halberd", "bardiche", "poleaxe",
-            "whip", "staff", "quarterstaff", "bow", "shortbow", "longbow",
-            "crossbow", "arbalest", "sling", "fustibalus"
-        ]):
+        # Route by base_type (reliable)
+        if base_type == 0:  # weapon
             return dcss.wield(key)
-        
-        # Armour 
-        if any(armour_type in item_name for armour_type in [
-            "robe", "leather", "ring mail", "scale mail", "chain mail",
-            "plate", "crystal plate", "cap", "helmet", "hat", "boots", 
-            "cloak", "scarf", "gloves", "gauntlets", "shield", "buckler"
-        ]):
-            # Check if already equipped - if so, take it off
-            if target_item.get("equipped"):
+        elif base_type == 9:  # staff (wieldable)
+            return dcss.wield(key)
+        elif base_type == 2:  # armour
+            if equipped:
                 return dcss.take_off_armour(key)
-            else:
-                return dcss.wear(key)
-        
-        # Potions
-        if "potion" in item_name:
+            return dcss.wear(key)
+        elif base_type == 7:  # potion
             return dcss.quaff(key)
-        
-        # Scrolls
-        if "scroll" in item_name:
+        elif base_type == 5:  # scroll
             return dcss.read_scroll(key)
-        
-        # Jewelry
-        if any(jewelry_type in item_name for jewelry_type in [
-            "ring", "amulet", "necklace"
-        ]):
-            # Check if already equipped - if so, remove it
-            if target_item.get("equipped"):
+        elif base_type == 6:  # jewellery
+            if equipped:
                 return dcss.remove_jewelry(key)
-            else:
-                return dcss.put_on_jewelry(key)
+            return dcss.put_on_jewelry(key)
+        elif base_type == 3:  # wand
+            return dcss.evoke(key)
+        elif base_type == 11:  # misc evocable
+            return dcss.evoke(key)
+        elif base_type is not None:
+            return f"Can't use {item_name} (type {base_type}) directly. Try examine('{key}') for details."
         
-        # Evocable items
-        if any(evocable_type in item_name for evocable_type in [
-            "wand", "rod", "misc", "lamp", "lantern", "stone", "box", 
-            "horn", "phial", "disc", "fan", "deck"
-        ]):
+        # Fallback: name-based detection if base_type missing
+        name_lower = item_name.lower()
+        if "potion" in name_lower:
+            return dcss.quaff(key)
+        elif "scroll" in name_lower:
+            return dcss.read_scroll(key)
+        elif "wand" in name_lower:
             return dcss.evoke(key)
         
-        # Default to examining if we can't determine type
-        return f"Unknown item type '{item_name}' - use examine('{key}') for details, or drop_item('{key}') to drop."
+        return f"Unknown item type '{item_name}' - use examine('{key}') for details."
         
     except Exception as e:
         return f"Error using item: {str(e)}"
