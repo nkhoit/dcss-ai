@@ -112,12 +112,6 @@ class DCSSDriver:
         """
         state = self.dcss.get_state_text()
         
-        # Auto-update overlay every turn
-        try:
-            self.dcss.update_overlay()
-        except Exception:
-            pass
-        
         # Get current place/xl for knowledge filtering
         try:
             stats = self.dcss.get_stats()
@@ -197,7 +191,7 @@ class DCSSDriver:
     async def run_game_session(self) -> None:
         """Run one complete game as a single LLM session."""
         system_prompt = self.load_system_prompt()  # Load with no place/xl initially
-        tools = build_tools(self.dcss)
+        tools = build_tools(self.dcss, knowledge_base=self.kb)
 
         session = await self.provider.create_session(system_prompt, tools, self.config["model"])
         self._active_session = session

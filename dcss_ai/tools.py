@@ -184,12 +184,22 @@ def _use_item_handler(dcss: DCSSGame, key: str) -> str:
         return f"Error using item: {str(e)}"
 
 
-def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
+def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
     """Build provider-agnostic tool definitions.
 
     Returns a list of tool dicts with: name, description, parameters, handler.
     Each handler takes a dict of params and returns a string.
     """
+
+    # Tools that don't change game state — no need to re-inject state after
+    FREE_ACTIONS = {
+        "get_landmarks", "write_note", "read_notes", "rip_page", "examine",
+        "read_ui", "select_menu_item", "dismiss", "respond", "choose_stat",
+        "narrate", "new_attempt", "record_win", "start_game",
+    }
+
+    # Track last knowledge place for refresh logic
+    _kb_state = {"last_place": None, "last_context": ""}
 
     tools = []
 
@@ -638,5 +648,41 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         },
         "handler": _make_handler(dcss, "start_game", StartGameParams)
     })
+
+    # Wrap turn-consuming tool handlers to auto-append game state
+    def _wrap_with_state(name, original_handler):
+        def wrapped(params):
+            result = original_handler(params)
+            if dcss._is_dead or not dcss._in_game:
+                return result
+            state = dcss.get_state_text()
+            # Auto-update overlay
+            try:
+                dcss.update_overlay()
+            except Exception:
+                pass
+            parts = [result, f"\n\n[Game State]\n{state}"]
+            # Inject knowledge when place changes
+            if knowledge_base:
+                try:
+                    place = f"{dcss._place}:{dcss._depth}" if dcss._place else None
+                    xl = dcss._xl
+                    if place != _kb_state["last_place"]:
+                        _kb_state["last_context"] = knowledge_base.get_knowledge_for_context(place, xl)
+                        _kb_state["last_place"] = place
+                    if _kb_state["last_context"]:
+                        parts.append(f"\n\n[Knowledge]\n{_kb_state['last_context']}")
+                except Exception:
+                    pass
+            return "".join(parts)
+        # Preserve any attributes from original handler
+        for attr in ('_default_msg',):
+            if hasattr(original_handler, attr):
+                setattr(wrapped, attr, getattr(original_handler, attr))
+        return wrapped
+
+    for tool in tools:
+        if tool["name"] not in FREE_ACTIONS:
+            tool["handler"] = _wrap_with_state(tool["name"], tool["handler"])
 
     return tools
