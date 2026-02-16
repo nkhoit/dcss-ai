@@ -90,29 +90,55 @@ class GameActions:
         """Use G (interlevel travel) to auto-travel. Returns messages or None if failed."""
         import time
         self._ws.send_key("G")
-        time.sleep(0.3)
+        time.sleep(0.5)
         msgs = self._ws.recv_messages(timeout=1.0)
-        got_prompt = False
+        got_text_prompt = False
+        got_menu = False
         for msg in msgs:
             self._process_msg(msg)
             mt = msg.get("msg")
             mode = msg.get("mode")
-            logger.debug(f"interlevel_travel: msg={mt}, mode={mode}")
-            if mt == "input_mode" and mode in (7, 0):
-                got_prompt = True
+            text = msg.get("text", "")
+            logger.debug(f"interlevel_travel: msg={mt}, mode={mode}, text={text[:80] if text else ''}")
+            if mt == "input_mode" and mode == 7:
+                got_text_prompt = True
             elif mt == "menu":
-                # WebTiles may use a menu for the travel prompt
-                got_prompt = True
-        if got_prompt:
-            # Send destination (e.g. ">" for nearest downstairs)
+                got_menu = True
+        
+        if got_text_prompt:
+            # Text input prompt — send destination character
+            logger.debug(f"interlevel_travel: sending destination '{destination}' to text prompt")
             self._ws.send_key(destination)
             self._ws.send_key("key_enter")
-            time.sleep(0.3)
-            # Wait for travel to complete or be interrupted
+            time.sleep(0.5)
             result = self._act(timeout=15.0)
+            recent = " ".join(result).lower()
+            if "can't go down" in recent or "can't go up" in recent:
+                return [f"[Interlevel travel failed — no reachable stairs. Use get_landmarks() to find stairs and move() toward them.]"]
+            return result
+        elif got_menu:
+            # Menu-based travel — try selecting nearest stairs
+            logger.debug(f"interlevel_travel: got menu, sending destination '{destination}'")
+            self._ws.send_key(destination)
+            time.sleep(0.3)
+            # Check if menu is still open (might need enter)
+            msgs2 = self._ws.recv_messages(timeout=0.5)
+            still_menu = False
+            for msg in msgs2:
+                self._process_msg(msg)
+                if msg.get("msg") == "menu":
+                    still_menu = True
+            if still_menu:
+                self._ws.send_key("key_enter")
+                time.sleep(0.3)
+            result = self._act(timeout=15.0)
+            recent = " ".join(result).lower()
+            if "can't go down" in recent or "can't go up" in recent:
+                return [f"[Interlevel travel failed — no reachable stairs. Use get_landmarks() to find stairs and move() toward them.]"]
             return result
         else:
             # No prompt appeared — escape anything leftover
+            logger.debug("interlevel_travel: no prompt detected, escaping")
             self._ws.send_key("key_esc")
             time.sleep(0.1)
             self._ws.recv_messages(timeout=0.2)
