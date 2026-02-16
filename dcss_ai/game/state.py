@@ -254,6 +254,90 @@ class GameState:
                 f"XL: {self._xl} ({self._xl_progress}%) | Gold: {self._gold} | Place: {self._place}:{self._depth} | "
                 f"God: {god_str}{contam_str}{noise_str}{doom_str}{lives_str}{status_str} | Turn: {self._turn}")
 
+    def get_tactical_readout(self) -> str:
+        """Compact tactical readout to replace the large ASCII map."""
+        px, py = self._position
+        if not self._map_cells:
+            return "No map data available"
+        
+        parts = []
+        
+        # Position info
+        current_cell = self._map_cells.get((px, py), ".")
+        terrain_name = {"#": "wall", ".": "floor", "+": "door", "'": "open door", 
+                       ">": "downstairs", "<": "upstairs", "~": "water", "≈": "deep water"}.get(current_cell, "unknown")
+        parts.append(f"Position: {self._place or 'Unknown'}:{self._depth or '?'} ({terrain_name})")
+        
+        # Adjacent tiles (8 neighbors)
+        adj_tiles = []
+        for dy in [-1, 0, 1]:
+            for dx in [-1, 0, 1]:
+                if dx == 0 and dy == 0:
+                    continue
+                nx, ny = px + dx, py + dy
+                cell = self._map_cells.get((nx, ny), " ")
+                direction = ""
+                if dy < 0: direction += "N"
+                elif dy > 0: direction += "S"
+                if dx > 0: direction += "E"
+                elif dx < 0: direction += "W"
+                if cell == "#":
+                    adj_tiles.append(f"{direction}:wall")
+                elif cell == "+":
+                    adj_tiles.append(f"{direction}:door")
+                elif cell == ">":
+                    adj_tiles.append(f"{direction}:down")
+                elif cell == "<":
+                    adj_tiles.append(f"{direction}:up")
+                elif cell == ".":
+                    adj_tiles.append(f"{direction}:floor")
+                elif cell == " ":
+                    adj_tiles.append(f"{direction}:unseen")
+        
+        parts.append(f"Adjacent: {', '.join(adj_tiles)}")
+        
+        # Nearby items on ground (within 3 tiles)
+        nearby_items = []
+        if hasattr(self, '_items'):
+            for (ix, iy), item_list in self._items.items():
+                if not item_list:
+                    continue
+                dx, dy = ix - px, iy - py
+                dist = max(abs(dx), abs(dy))
+                if dist <= 3:
+                    direction = ""
+                    if dy < 0: direction += "N"
+                    elif dy > 0: direction += "S"
+                    if dx > 0: direction += "E"
+                    elif dx < 0: direction += "W"
+                    for item in item_list[:2]:  # Max 2 items per location
+                        item_name = item.get("name", "item")
+                        nearby_items.append(f"{item_name} ({direction or 'here'}, {dist})")
+        
+        if nearby_items:
+            parts.append(f"Items: {', '.join(nearby_items[:5])}")  # Max 5 items total
+        
+        # Retreat options (nearest upstairs)
+        nearest_up = None
+        for (x, y), glyph in self._map_cells.items():
+            if glyph == "<":
+                dx, dy = x - px, y - py
+                dist = max(abs(dx), abs(dy))
+                if nearest_up is None or dist < nearest_up[3]:
+                    direction = ""
+                    if dy < 0: direction += "N"
+                    elif dy > 0: direction += "S"
+                    if dx > 0: direction += "E"
+                    elif dx < 0: direction += "W"
+                    nearest_up = (x, y, direction or "here", dist)
+        
+        if nearest_up:
+            parts.append(f"Nearest upstairs: {nearest_up[2]}, {nearest_up[3]} tiles")
+        else:
+            parts.append("Nearest upstairs: none visible")
+        
+        return " | ".join(parts)
+
     def get_state_text(self) -> str:
         parts = ["=== DCSS State ===", self.get_stats(), "", "--- Messages ---"]
         for msg in self.get_messages(5):
@@ -288,8 +372,8 @@ class GameState:
                 parts.append("")
                 parts.append(f"--- Environment: {', '.join(env_effects)} ---")
         parts.append("")
-        parts.append("--- Map ---")
-        parts.append(self.get_map())
+        parts.append("--- Tactical ---")
+        parts.append(self.get_tactical_readout())
         if self._is_dead:
             parts.append("\n*** GAME OVER \u2014 YOU ARE DEAD ***")
         return "\n".join(parts)

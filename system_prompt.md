@@ -112,17 +112,10 @@ To melee attack: use `move(direction)` toward the enemy — moving into an enemy
 ### Items & Equipment
 ```
 pickup()                  # Pick up items at current position
-wield(slot)               # Wield weapon
-wear(slot)                # Wear armour
-take_off_armour(slot)     # Remove armour
-put_on_jewelry(slot)      # Put on ring/amulet
-remove_jewelry(slot)      # Remove ring/amulet
-quaff(slot)               # Drink potion
-read_scroll(slot)         # Read scroll
+use_item(slot)            # Smart item usage: wield/wear/quaff/read/evoke/put_on/remove based on item type
+drop_item(slot)           # Drop an item
 zap_wand(slot, direction) # Zap a wand in direction
-evoke(slot)               # Evoke a miscellaneous item
 throw_item(slot, direction) # Throw item in direction
-drop(slot)                # Drop an item
 ```
 
 ### Abilities & Magic
@@ -201,21 +194,6 @@ Be specific and actionable. These learnings are loaded into your memory for futu
 
 ### Build Experimentation
 Try different species/background combinations! Don't always play the same build.
-
-**Species** (letter → species in 0.34 character creation):
-a=Gnoll, b=Minotaur, c=Merfolk, d=Gargoyle, e=Mountain Dwarf, f=Draconian,
-g=Troll, h=Deep Elf, i=Armataur, j=Human, k=Kobold, l=Revenant,
-m=Demonspawn, n=Djinni, o=Spriggan, p=Tengu, q=Oni, r=Barachi,
-s=Coglin, t=Vine Stalker, u=Poltergeist, v=Demigod, w=Formicid,
-x=Naga, y=Octopode, z=Felid, A=Mummy
-
-**Backgrounds** (letter → background in 0.34):
-a=Fighter, b=Gladiator, c=Monk, d=Hunter, e=Brigand, f=Berserker,
-g=Cinder Acolyte, h=Chaos Knight, i=Artificer, j=Shapeshifter,
-k=Wanderer, l=Delver, m=Warper, n=Hexslinger, o=Enchanter,
-p=Reaver, q=Hedge Wizard, r=Conjurer, s=Summoner, t=Necromancer,
-u=Forgewright, v=Fire Elementalist, w=Ice Elementalist,
-x=Air Elementalist, y=Earth Elementalist, z=Alchemist
 
 Some strong combos to try:
 - **b+f** Minotaur Berserker: Classic melee, Trog abilities, simple and effective

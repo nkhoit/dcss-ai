@@ -163,6 +163,81 @@ def _make_handler(dcss: DCSSGame, method_name: str, param_model: type, *args, **
     return handler
 
 
+def _use_item_handler(dcss: DCSSGame, key: str) -> str:
+    """Smart item handler that routes to the appropriate action based on item type."""
+    try:
+        inventory = dcss.get_inventory()
+        if not inventory:
+            return "No inventory available."
+        
+        # Find the item by slot
+        target_item = None
+        for item in inventory:
+            if item.get("slot") == key:
+                target_item = item
+                break
+        
+        if not target_item:
+            return f"No item in slot {key}."
+        
+        item_name = target_item.get("name", "").lower()
+        
+        # Determine action based on item type
+        # Weapons
+        if any(weapon_type in item_name for weapon_type in [
+            "sword", "blade", "dagger", "knife", "rapier", "sabre", "scimitar", 
+            "axe", "hand axe", "war axe", "battleaxe", "broad axe",
+            "club", "mace", "flail", "morningstar", "hammer", "maul", 
+            "spear", "trident", "glaive", "halberd", "bardiche", "poleaxe",
+            "whip", "staff", "quarterstaff", "bow", "shortbow", "longbow",
+            "crossbow", "arbalest", "sling", "fustibalus"
+        ]):
+            return dcss.wield(key)
+        
+        # Armour 
+        if any(armour_type in item_name for armour_type in [
+            "robe", "leather", "ring mail", "scale mail", "chain mail",
+            "plate", "crystal plate", "cap", "helmet", "hat", "boots", 
+            "cloak", "scarf", "gloves", "gauntlets", "shield", "buckler"
+        ]):
+            # Check if already equipped - if so, take it off
+            if target_item.get("equipped"):
+                return dcss.take_off_armour(key)
+            else:
+                return dcss.wear(key)
+        
+        # Potions
+        if "potion" in item_name:
+            return dcss.quaff(key)
+        
+        # Scrolls
+        if "scroll" in item_name:
+            return dcss.read_scroll(key)
+        
+        # Jewelry
+        if any(jewelry_type in item_name for jewelry_type in [
+            "ring", "amulet", "necklace"
+        ]):
+            # Check if already equipped - if so, remove it
+            if target_item.get("equipped"):
+                return dcss.remove_jewelry(key)
+            else:
+                return dcss.put_on_jewelry(key)
+        
+        # Evocable items
+        if any(evocable_type in item_name for evocable_type in [
+            "wand", "rod", "misc", "lamp", "lantern", "stone", "box", 
+            "horn", "phial", "disc", "fan", "deck"
+        ]):
+            return dcss.evoke(key)
+        
+        # Default to examining if we can't determine type
+        return f"Unknown item type '{item_name}' - use examine('{key}') for details, or drop_item('{key}') to drop."
+        
+    except Exception as e:
+        return f"Error using item: {str(e)}"
+
+
 def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     """Build provider-agnostic tool definitions.
     
@@ -343,8 +418,8 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     tools[-1]["handler"]._default_msg = "Picked up."
     
     tools.append({
-        "name": "wield",
-        "description": "Wield a weapon by inventory slot letter.",
+        "name": "use_item",
+        "description": "Use an item from inventory by slot letter. Automatically determines the appropriate action: wield weapons, wear armour, quaff potions, read scrolls, evoke misc items, put on jewelry, remove jewelry, or take off armour.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -352,54 +427,11 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
             },
             "required": ["key"]
         },
-        "handler": _make_handler(dcss, "wield", SlotParams)
+        "handler": lambda params: _use_item_handler(dcss, params["key"])
     })
-    tools[-1]["handler"]._default_msg = "Wielded."
     
     tools.append({
-        "name": "wear",
-        "description": "Wear armour by inventory slot letter.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
-            },
-            "required": ["key"]
-        },
-        "handler": _make_handler(dcss, "wear", SlotParams)
-    })
-    tools[-1]["handler"]._default_msg = "Wearing."
-    
-    tools.append({
-        "name": "quaff",
-        "description": "Drink a potion by inventory slot letter.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
-            },
-            "required": ["key"]
-        },
-        "handler": _make_handler(dcss, "quaff", SlotParams)
-    })
-    tools[-1]["handler"]._default_msg = "Quaffed."
-    
-    tools.append({
-        "name": "read_scroll",
-        "description": "Read a scroll by inventory slot letter.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
-            },
-            "required": ["key"]
-        },
-        "handler": _make_handler(dcss, "read_scroll", SlotParams)
-    })
-    tools[-1]["handler"]._default_msg = "Read scroll."
-    
-    tools.append({
-        "name": "drop",
+        "name": "drop_item",
         "description": "Drop an item by inventory slot letter.",
         "parameters": {
             "type": "object",
@@ -428,20 +460,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     tools[-1]["handler"]._default_msg = "Zapped."
     
     tools.append({
-        "name": "evoke",
-        "description": "Evoke a miscellaneous evocable item by inventory slot letter.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
-            },
-            "required": ["key"]
-        },
-        "handler": _make_handler(dcss, "evoke", SlotParams)
-    })
-    tools[-1]["handler"]._default_msg = "Evoked."
-    
-    tools.append({
         "name": "throw_item",
         "description": "Throw/fire an item at an enemy. Requires slot letter and direction.",
         "parameters": {
@@ -455,48 +473,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         "handler": _make_handler(dcss, "throw_item", SlotDirectionParams)
     })
     tools[-1]["handler"]._default_msg = "Thrown."
-    
-    tools.append({
-        "name": "put_on_jewelry",
-        "description": "Put on a ring or amulet by inventory slot letter.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
-            },
-            "required": ["key"]
-        },
-        "handler": _make_handler(dcss, "put_on_jewelry", SlotParams)
-    })
-    tools[-1]["handler"]._default_msg = "Put on."
-    
-    tools.append({
-        "name": "remove_jewelry",
-        "description": "Remove a ring or amulet. Slot letter optional if only one worn.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "Inventory slot letter (a-z), optional if only one worn", "default": ""}
-            },
-            "required": []
-        },
-        "handler": _make_handler(dcss, "remove_jewelry", OptionalSlotParams)
-    })
-    tools[-1]["handler"]._default_msg = "Removed."
-    
-    tools.append({
-        "name": "take_off_armour",
-        "description": "Take off worn armour by inventory slot letter.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
-            },
-            "required": ["key"]
-        },
-        "handler": _make_handler(dcss, "take_off_armour", SlotParams)
-    })
-    tools[-1]["handler"]._default_msg = "Taken off."
     
     # --- Combat & abilities ---
     
