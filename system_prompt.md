@@ -40,6 +40,7 @@ read_ui()                   # Read open menu/popup
 ```
 move(direction)             # n/s/e/w/ne/nw/se/sw (moving into enemy = melee attack)
 auto_explore()              # Explore until interrupted
+auto_play(...)              # Autonomous loop: explore→fight→rest. Use for routine clearing.
 go_upstairs() / go_downstairs()
 wait_turn()
 ```
@@ -84,11 +85,11 @@ narrate(thought)            # Stream commentary (REQUIRED)
 
 ## Game Loop
 
-1. `new_attempt()` → `start_game()` → `auto_explore()`
-2. Fight: `auto_fight()` for trivial enemies, tactical play for threats
-3. `rest()` after fights when safe
-4. Pick up useful items
-5. Descend when floor is cleared and healthy
+1. `new_attempt()` → `start_game()`
+2. Use `auto_play()` for routine floor clearing — it handles explore/fight/rest automatically
+3. When auto_play stops, handle the situation (dangerous enemy, equipment decision, altar choice, stairs)
+4. Use fine-grained tools (move, cast_spell, use_item, etc.) for tactical decisions
+5. Resume `auto_play()` when the situation is handled
 6. Narrate throughout
 
 On death: say GAME_OVER (death data is captured automatically).

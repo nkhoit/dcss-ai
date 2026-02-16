@@ -316,6 +316,29 @@ def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
     tools[-1]["handler"]._default_msg = "Fighting..."
 
     tools.append({
+        "name": "auto_play",
+        "description": "Autonomous play: loops explore→fight→rest automatically. Returns a report of what happened. Use for routine floor clearing. You keep fine-grained tools for complex decisions. Always stops for: dangerous enemies, status effects, level ups, death. Configure thresholds to control when it gives you back control.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "hp_threshold": {"type": "integer", "description": "Stop if HP% drops below this (default 50)", "default": 50},
+                "max_actions": {"type": "integer", "description": "Max actions before stopping (default 50)", "default": 50},
+                "stop_on_items": {"type": "boolean", "description": "Stop when equipment (weapons/armour/jewellery) is found (default true)", "default": True},
+                "stop_on_altars": {"type": "boolean", "description": "Stop when a god altar is found (default true)", "default": True},
+                "auto_descend": {"type": "boolean", "description": "Automatically descend stairs when floor is clear (default false)", "default": False},
+            },
+            "required": []
+        },
+        "handler": lambda params: dcss.auto_play(
+            hp_threshold=params.get("hp_threshold", 50),
+            max_actions=params.get("max_actions", 50),
+            stop_on_items=params.get("stop_on_items", True),
+            stop_on_altars=params.get("stop_on_altars", True),
+            auto_descend=params.get("auto_descend", False),
+        )
+    })
+
+    tools.append({
         "name": "rest",
         "description": "Rest until healed (5). Won't work with enemies nearby.",
         "parameters": {

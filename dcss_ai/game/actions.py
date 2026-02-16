@@ -241,3 +241,284 @@ class GameActions:
             if item.get("slot") == slot:
                 return [f"{slot} - {item.get('name', 'unknown')} (qty: {item.get('quantity', 1)})"]
         return [f"No item in slot '{slot}'."]
+
+    def auto_play(self, hp_threshold: int = 50, max_actions: int = 50,
+                  stop_on_items: bool = True, stop_on_altars: bool = True,
+                  auto_descend: bool = False) -> str:
+        """Autonomous play loop: explore, fight trivial enemies, rest, repeat.
+        
+        Returns a structured report of what happened plus the stop reason.
+        Fine-grained tools remain available for complex decisions.
+        """
+        import time as _time
+        
+        actions = 0
+        xl_start = self._xl
+        floor_logs = {}  # place -> list of events
+        current_floor = f"{self._place}:{self._depth}" if self._place else "unknown"
+        floor_logs[current_floor] = []
+        kills = []
+        pickups = []
+        stop_reason = "action limit reached"
+        
+        def log(event: str):
+            floor = f"{self._place}:{self._depth}" if self._place else "unknown"
+            if floor not in floor_logs:
+                floor_logs[floor] = []
+            floor_logs[floor].append(event)
+        
+        def check_hp() -> bool:
+            """Returns True if HP is below threshold."""
+            if self._max_hp <= 0:
+                return False
+            return (self._hp / self._max_hp * 100) < hp_threshold
+        
+        def check_dangerous_enemies() -> list:
+            """Returns list of dangerous+ enemies if any."""
+            enemies = self.get_nearby_enemies()
+            dangerous = []
+            for e in enemies:
+                threat = e.get("threat", "trivial")
+                if threat in ("dangerous", "extremely dangerous"):
+                    dangerous.append(e)
+            return dangerous
+        
+        def check_status_effects() -> list:
+            """Returns list of bad status effects."""
+            BAD_STATUSES = {"Conf", "Para", "Petr", "Slow", "Berserk", "Mesm"}
+            if not hasattr(self, '_status') or not self._status:
+                return []
+            return [s for s in self._status if s in BAD_STATUSES]
+        
+        def check_messages_for_events(msgs: list) -> str | None:
+            """Scan messages for notable events. Returns stop reason or None."""
+            text = " ".join(msgs).lower()
+            
+            # Altar detection
+            if stop_on_altars and "altar of" in text:
+                altar = ""
+                for m in msgs:
+                    if "altar of" in m.lower():
+                        altar = m.strip()
+                        break
+                return f"found altar: {altar}"
+            
+            # Equipment item pickup (weapons, armour, jewellery, staves)
+            if stop_on_items:
+                EQUIPMENT_WORDS = {"sword", "axe", "mace", "whip", "staff", "dagger",
+                                   "scythe", "halberd", "glaive", "bardiche", "bow",
+                                   "crossbow", "sling", "mail", "robe", "armour", "armor",
+                                   "shield", "buckler", "helmet", "hat", "cloak", "gloves",
+                                   "boots", "barding", "ring", "amulet", "artefact",
+                                   "artifact", "branded", "runed", "glowing", "enchanted"}
+                for m in msgs:
+                    ml = m.lower()
+                    if any(w in ml for w in EQUIPMENT_WORDS):
+                        # Check it's a pickup, not combat
+                        if any(p in ml for p in (" - ", "you now have", "pick up")):
+                            return f"picked up equipment: {m.strip()}"
+            
+            return None
+        
+        while actions < max_actions:
+            # --- Pre-action checks ---
+            
+            # Check for dangerous enemies
+            dangerous = check_dangerous_enemies()
+            if dangerous:
+                names = [f"{e['name']} ({e['direction']}, dist {e['distance']})" for e in dangerous]
+                stop_reason = f"dangerous enemy spotted: {', '.join(names)}"
+                break
+            
+            # Check HP
+            if check_hp():
+                hp_pct = int(self._hp / self._max_hp * 100) if self._max_hp > 0 else 0
+                stop_reason = f"HP low ({self._hp}/{self._max_hp}, {hp_pct}%)"
+                break
+            
+            # Check status effects
+            bad_status = check_status_effects()
+            if bad_status:
+                stop_reason = f"status effect: {', '.join(bad_status)}"
+                break
+            
+            # Check for level up
+            if self._xl > xl_start:
+                log(f"Leveled up: XL {xl_start} → {self._xl}")
+                stop_reason = f"leveled up to XL {self._xl}"
+                break
+            
+            # --- Try to explore ---
+            enemies = self.get_nearby_enemies()
+            
+            if enemies:
+                # Enemies present — fight if trivial/easy, otherwise stop
+                for e in enemies:
+                    threat = e.get("threat", "trivial")
+                    if threat in ("dangerous", "extremely dangerous"):
+                        stop_reason = f"dangerous enemy: {e['name']} ({e['direction']}, dist {e['distance']})"
+                        break
+                else:
+                    # All enemies are trivial/easy — auto fight
+                    result = self.auto_fight()
+                    actions += 1
+                    text = " ".join(result)
+                    
+                    # Check for kills in the messages
+                    for m in result:
+                        if "you kill" in m.lower() or "you destroy" in m.lower():
+                            # Extract monster name
+                            for part in m.split("!"):
+                                pl = part.lower().strip()
+                                if pl.startswith("you kill ") or pl.startswith("you destroy "):
+                                    name = pl.split("the ", 1)[-1].rstrip(".!") if "the " in pl else pl.split(" ", 2)[-1].rstrip(".!")
+                                    kills.append(name)
+                                    log(f"Killed {name}")
+                    
+                    # Check if we died
+                    if self._is_dead:
+                        stop_reason = "you died"
+                        break
+                    
+                    # Check if HP dropped below threshold during fight
+                    if check_hp():
+                        hp_pct = int(self._hp / self._max_hp * 100) if self._max_hp > 0 else 0
+                        stop_reason = f"HP low after combat ({self._hp}/{self._max_hp}, {hp_pct}%)"
+                        break
+                    
+                    # Check for multiple enemies
+                    remaining = self.get_nearby_enemies()
+                    if len(remaining) >= 3:
+                        names = [e['name'] for e in remaining[:5]]
+                        stop_reason = f"multiple enemies ({len(remaining)}): {', '.join(names)}"
+                        break
+                    
+                    continue
+                
+                # If we broke out of the for-else (dangerous enemy), break outer loop
+                if "dangerous" in stop_reason:
+                    break
+            
+            else:
+                # No enemies — try exploring
+                turn_before = self._turn
+                result = self.auto_explore()
+                actions += 1
+                text = " ".join(result)
+                
+                # Check for pickups in messages
+                for m in result:
+                    ml = m.lower()
+                    if " - " in m and any(c.isalpha() for c in m[:3]):
+                        # Likely an item pickup (e.g. "d - a potion of heal wounds")
+                        pickups.append(m.strip())
+                    elif "gold piece" in ml:
+                        pickups.append(m.strip())
+                
+                # Check for notable events in messages
+                event = check_messages_for_events(result)
+                if event:
+                    log(event)
+                    stop_reason = event
+                    break
+                
+                # Check if we died
+                if self._is_dead:
+                    stop_reason = "you died"
+                    break
+                
+                # Explore interrupted by enemy — loop will handle on next iteration
+                if "Explore interrupted" in text:
+                    continue
+                
+                # Floor fully explored
+                if "Floor fully explored" in text or turn_before == self._turn:
+                    if auto_descend:
+                        # Try to descend
+                        log("Floor fully explored, descending")
+                        depth_before = self._depth
+                        place_before = self._place
+                        desc_result = self.go_downstairs()
+                        actions += 1
+                        desc_text = " ".join(desc_result)
+                        
+                        if self._depth > depth_before or self._place != place_before:
+                            new_floor = f"{self._place}:{self._depth}"
+                            log(f"Descended to {new_floor}")
+                            current_floor = new_floor
+                            
+                            # Rest to full before exploring new floor
+                            if self._hp < self._max_hp:
+                                rest_result = self.rest()
+                                actions += 1
+                            continue
+                        else:
+                            stop_reason = "floor explored but couldn't reach stairs"
+                            break
+                    else:
+                        # Try to go to stairs and stop there
+                        depth_before = self._depth
+                        desc_result = self.go_downstairs()
+                        actions += 1
+                        desc_text = " ".join(desc_result)
+                        
+                        if self._depth > depth_before:
+                            # We actually descended — that's fine, report it
+                            new_floor = f"{self._place}:{self._depth}"
+                            log(f"Descended to {new_floor}")
+                            stop_reason = f"descended to {new_floor}"
+                        elif "Not on stairs" in desc_text:
+                            stop_reason = "floor explored but couldn't reach stairs"
+                        else:
+                            stop_reason = "floor fully explored, standing on downstairs"
+                        break
+                
+                # Rest if HP not full and no enemies
+                if self._hp < self._max_hp and not self.get_nearby_enemies():
+                    rest_result = self.rest()
+                    actions += 1
+                    if self._is_dead:
+                        stop_reason = "you died"
+                        break
+        
+        # --- Build report ---
+        report_lines = []
+        
+        # Header
+        floors_visited = list(floor_logs.keys())
+        if len(floors_visited) > 1:
+            report_lines.append(f"=== Auto-Play Report ({actions} actions, {floors_visited[0]} → {floors_visited[-1]}) ===")
+        else:
+            report_lines.append(f"=== Auto-Play Report ({actions} actions, {floors_visited[0]}) ===")
+        report_lines.append("")
+        
+        # Per-floor breakdown
+        for floor, events in floor_logs.items():
+            if events:
+                report_lines.append(f"{floor}:")
+                for event in events:
+                    report_lines.append(f"  {event}")
+                report_lines.append("")
+        
+        # Summary
+        if kills:
+            # Deduplicate with counts
+            from collections import Counter
+            kill_counts = Counter(kills)
+            kill_strs = []
+            for name, count in kill_counts.most_common():
+                kill_strs.append(f"{count}x {name}" if count > 1 else name)
+            report_lines.append(f"Kills: {', '.join(kill_strs)}")
+        
+        if pickups:
+            # Limit to 10 most recent
+            shown = pickups[-10:]
+            report_lines.append(f"Picked up: {'; '.join(shown)}")
+        
+        if self._xl > xl_start:
+            report_lines.append(f"Leveled: XL {xl_start} → {self._xl}")
+        
+        report_lines.append("")
+        report_lines.append(f"Stopped: {stop_reason}")
+        
+        return "\n".join(report_lines)
