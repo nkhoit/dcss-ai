@@ -67,7 +67,11 @@ class GameActions:
         place_before = self._place
         result = self._act("<")
         if self._depth >= depth_before and self._place == place_before:
-            result.append("[Not standing on upstairs (<). Use auto_explore() to find stairs, or move to a '<' tile on the map first.]")
+            # Not on stairs — try interlevel travel (G then < at prompt)
+            result2 = self._interlevel_travel("<")
+            if result2 is not None:
+                return result2
+            result.append("[Not on stairs. Use get_landmarks() to find stairs, then move() toward them step by step.]")
         return result
 
     def go_downstairs(self) -> List[str]:

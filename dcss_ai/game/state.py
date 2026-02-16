@@ -196,7 +196,20 @@ class GameState:
             if dx > 0: direction += "e"
             elif dx < 0: direction += "w"
             status = self._decode_monster_status((mx, my))
-            enemies.append({"name": mon.get("name", "unknown"), "x": dx, "y": dy, "direction": direction or "here", "distance": dist, "threat": mon.get("threat", 0), "status": status})
+            # Threat level: use server value, but override for known dangerous monsters
+            KNOWN_DANGEROUS = {
+                'sigmund', 'jessica', 'edmund', 'eustachio', 'natasha',
+                'robin, the goblin', 'ijyb', 'terence',
+                'ogre', 'centaur', 'gnoll sergeant', 'orc priest', 'orc wizard',
+            }
+            raw_threat = mon.get("threat", 0)
+            if name in KNOWN_DANGEROUS and raw_threat < 2:
+                raw_threat = 2  # at least "dangerous"
+            
+            threat_labels = {0: "trivial", 1: "easy", 2: "dangerous", 3: "extremely dangerous"}
+            threat_label = threat_labels.get(raw_threat, f"unknown({raw_threat})")
+            
+            enemies.append({"name": mon.get("name", "unknown"), "x": dx, "y": dy, "direction": direction or "here", "distance": dist, "threat": threat_label, "status": status})
         enemies.sort(key=lambda e: e["distance"])
         return enemies
 
