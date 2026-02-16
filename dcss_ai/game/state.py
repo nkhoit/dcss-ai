@@ -73,11 +73,13 @@ class GameState:
     def get_inventory(self) -> List[Dict[str, Any]]:
         items = []
         for slot, data in sorted(self._inventory.items()):
+            if slot >= 52:  # virtual slots (quiver etc) — skip
+                continue
             name = data.get("name", "")
             if not name or name == "?":
                 continue
             item = {
-                "slot": chr(ord('a') + slot) if slot < 26 else chr(ord('A') + slot - 26) if slot < 52 else str(slot),
+                "slot": chr(ord('a') + slot) if slot < 26 else chr(ord('A') + slot - 26),
                 "name": name,
                 "quantity": data.get("quantity", 1),
             }
