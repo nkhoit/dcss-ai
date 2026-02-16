@@ -88,22 +88,44 @@ class DCSSDriver:
             self.logger.error(f"DCSS connection error: {e}")
             return False
 
-    def load_system_prompt(self, place: str = None, xl: int = None) -> str:
-        """Load system prompt from file and append knowledge.
-        
-        Args:
-            place: Current location (e.g. "D:3")
-            xl: Current experience level
-        """
+    def load_system_prompt(self) -> str:
+        """Load system prompt from file."""
         prompt_path = Path(__file__).parent.parent / "system_prompt.md"
         with open(prompt_path, 'r') as f:
             system_prompt = f.read()
 
-        # Append knowledge from knowledge base (filtered by game phase)
-        knowledge = self.kb.get_knowledge_for_context(place, xl)
-        system_prompt += f"\n\n---\n\n{knowledge}"
-
         return system_prompt
+
+    def build_turn_prompt(self, message: str) -> str:
+        """Build a turn prompt with auto-injected state and knowledge.
+        
+        Knowledge is refreshed when the place changes, so the model
+        gets relevant info as it moves through the dungeon.
+        """
+        state = self.dcss.get_state_text()
+        
+        # Get current place/xl for knowledge filtering
+        try:
+            stats = self.dcss.get_stats()
+            place = stats.get("place")
+            xl = stats.get("xl")
+        except Exception:
+            place = None
+            xl = None
+        
+        # Refresh knowledge when place changes
+        if place != self._last_knowledge_place:
+            self._last_knowledge_context = self.kb.get_knowledge_for_context(place, xl)
+            self._last_knowledge_place = place
+        
+        knowledge = getattr(self, '_last_knowledge_context', '')
+        
+        parts = [f"[Game State]\n{state}"]
+        if knowledge:
+            parts.append(f"[Knowledge]\n{knowledge}")
+        parts.append(message)
+        
+        return "\n\n".join(parts)
 
     def capture_death_data(self) -> dict:
         """Capture structured death data from game state.
@@ -230,8 +252,7 @@ class DCSSDriver:
                                 # Auto-inject state for new session
                                 try:
                                     if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
-                                        state = self.dcss.get_state_text()
-                                        prompt = f"[Game State]\n{state}\n\nYou are continuing a game already in progress. Keep playing."
+                                        prompt = self.build_turn_prompt("You are continuing a game already in progress. Keep playing.")
                                     else:
                                         prompt = "You are continuing a game already in progress. Keep playing."
                                 except Exception:
@@ -242,8 +263,7 @@ class DCSSDriver:
                                 # Auto-inject state for nudge
                                 try:
                                     if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
-                                        state = self.dcss.get_state_text()
-                                        prompt = f"[Game State]\n{state}\n\nThe game is still in progress. You are autonomous — DO NOT stop playing. DO NOT ask for user input. Call a tool and keep going."
+                                        prompt = self.build_turn_prompt("The game is still in progress. You are autonomous — DO NOT stop playing. DO NOT ask for user input. Call a tool and keep going.")
                                     else:
                                         prompt = "The game is still in progress. You are autonomous — DO NOT stop playing. DO NOT ask for user input. Call a tool and keep going."
                                 except Exception:
@@ -275,8 +295,7 @@ class DCSSDriver:
                             # Auto-inject state for retry after silence
                             try:
                                 if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
-                                    state = self.dcss.get_state_text()
-                                    prompt = f"[Game State]\n{state}\n\n{continue_prompt}"
+                                    prompt = self.build_turn_prompt(continue_prompt)
                                 else:
                                     prompt = continue_prompt
                             except Exception:
@@ -291,8 +310,7 @@ class DCSSDriver:
                             # Auto-inject state for retry after no tools
                             try:
                                 if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
-                                    state = self.dcss.get_state_text()
-                                    prompt = f"[Game State]\n{state}\n\n{continue_prompt}"
+                                    prompt = self.build_turn_prompt(continue_prompt)
                                 else:
                                     prompt = continue_prompt
                             except Exception:
@@ -307,8 +325,7 @@ class DCSSDriver:
                             # Auto-inject state for normal continuation
                             try:
                                 if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
-                                    state = self.dcss.get_state_text()
-                                    prompt = f"[Game State]\n{state}\n\n{continue_prompt}"
+                                    prompt = self.build_turn_prompt(continue_prompt)
                                 else:
                                     prompt = continue_prompt
                             except Exception:
