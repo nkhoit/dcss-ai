@@ -409,7 +409,14 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
         }
         for json_key, attr in field_map.items():
             if json_key in msg:
+                old_val = getattr(self, attr, None)
                 setattr(self, attr, msg[json_key])
+                # Clear stale map data on floor change
+                if json_key in ("place", "depth") and msg[json_key] != old_val:
+                    self._monsters.clear()
+                    if hasattr(self, '_items'):
+                        self._items.clear()
+                    logger.debug(f"Floor changed ({json_key}: {old_val} → {msg[json_key]}), cleared monsters/items")
         if "pos" in msg:
             pos = msg["pos"]
             if isinstance(pos, dict):
