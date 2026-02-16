@@ -70,12 +70,6 @@ class StartGameParams(BaseModel):
     ))
     weapon_key: str = Field(default="", description="Weapon key if prompted (a/b/etc, leave empty for auto)")
 
-class MapParams(BaseModel):
-    radius: int = Field(default=15, description="Map view radius (default 15)")
-
-class MessagesParams(BaseModel):
-    n: int = Field(default=10, description="Number of recent messages to return")
-
 
 def _make_handler(dcss: DCSSGame, method_name: str, param_model: type, *args, **kwargs) -> Callable:
     """Create a handler function that validates params and calls a DCSS method."""
@@ -181,30 +175,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     # --- State queries (free, no turn cost) ---
     
     tools.append({
-        "name": "get_state_text",
-        "description": "Get full game state: stats, messages, inventory, enemies, map. Use this to orient yourself.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        },
-        "handler": _make_handler(dcss, "get_state_text", EmptyParams)
-    })
-    
-    tools.append({
-        "name": "get_map", 
-        "description": "Get ASCII map centered on player (@). Radius controls view size.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "radius": {"type": "integer", "description": "Map view radius", "default": 15}
-            },
-            "required": []
-        },
-        "handler": _make_handler(dcss, "get_map", MapParams)
-    })
-    
-    tools.append({
         "name": "get_landmarks",
         "description": "Find stairs, altars, and other notable features on the explored map. Shows direction and distance from current position. Use this to navigate to known stairs instead of wandering.",
         "parameters": {
@@ -256,50 +226,18 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     })
     
     tools.append({
-        "name": "get_inventory",
-        "description": "Get inventory as list of items with slot letters and names.",
-        "parameters": {
-            "type": "object", 
-            "properties": {},
-            "required": []
-        },
-        "handler": lambda params: json.dumps(dcss.get_inventory(), indent=2)
-    })
-    
-    tools.append({
-        "name": "get_nearby_enemies",
-        "description": "Get nearby visible enemies sorted by distance, with direction and threat level.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        },
-        "handler": lambda params: json.dumps(dcss.get_nearby_enemies(), indent=2)
-    })
-    
-    tools.append({
-        "name": "get_stats",
-        "description": "Get one-line stats summary: HP, MP, AC, EV, XL, place, turn.",
-        "parameters": {
-            "type": "object",
-            "properties": {},
-            "required": []
-        },
-        "handler": _make_handler(dcss, "get_stats", EmptyParams)
-    })
-    
-    tools.append({
-        "name": "get_messages",
-        "description": "Get last N game messages. Messages reveal what's happening in combat.",
+        "name": "examine",
+        "description": "Examine/describe an inventory item by slot letter. Shows stats and details.",
         "parameters": {
             "type": "object",
             "properties": {
-                "n": {"type": "integer", "description": "Number of recent messages to return", "default": 10}
+                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
             },
-            "required": []
+            "required": ["key"]
         },
-        "handler": lambda params: "\n".join(dcss.get_messages(n=params.get('n', 10)))
+        "handler": _make_handler(dcss, "examine", SlotParams)
     })
+    tools[-1]["handler"]._default_msg = "No description."
     
     # --- Movement & exploration ---
     
@@ -559,20 +497,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         "handler": _make_handler(dcss, "take_off_armour", SlotParams)
     })
     tools[-1]["handler"]._default_msg = "Taken off."
-    
-    tools.append({
-        "name": "examine",
-        "description": "Examine/describe an inventory item by slot letter. Shows stats and details.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
-            },
-            "required": ["key"]
-        },
-        "handler": _make_handler(dcss, "examine", SlotParams)
-    })
-    tools[-1]["handler"]._default_msg = "No description."
     
     # --- Combat & abilities ---
     

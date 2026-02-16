@@ -170,16 +170,28 @@ class DCSSDriver:
                                 self._active_session = session
                                 nudge_count = 0
                                 retries += 1
-                                prompt = (
-                                    "You are continuing a game already in progress. "
-                                    "Call get_stats() and get_state_text() to see your current state, then keep playing."
-                                )
+                                
+                                # Auto-inject state for new session
+                                try:
+                                    if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                        state = self.dcss.get_state_text()
+                                        prompt = f"[Game State]\n{state}\n\nYou are continuing a game already in progress. Keep playing."
+                                    else:
+                                        prompt = "You are continuing a game already in progress. Keep playing."
+                                except Exception:
+                                    prompt = "You are continuing a game already in progress. Keep playing."
                             else:
                                 self.logger.info(f"SDK session completed, game still active — nudging ({nudge_count})...")
-                                prompt = (
-                                    "The game is still in progress. You are autonomous — DO NOT stop playing. "
-                                    "DO NOT ask for user input. Call a tool and keep going."
-                                )
+                                
+                                # Auto-inject state for nudge
+                                try:
+                                    if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                        state = self.dcss.get_state_text()
+                                        prompt = f"[Game State]\n{state}\n\nThe game is still in progress. You are autonomous — DO NOT stop playing. DO NOT ask for user input. Call a tool and keep going."
+                                    else:
+                                        prompt = "The game is still in progress. You are autonomous — DO NOT stop playing. DO NOT ask for user input. Call a tool and keep going."
+                                except Exception:
+                                    prompt = "The game is still in progress. You are autonomous — DO NOT stop playing. DO NOT ask for user input. Call a tool and keep going."
                             continue
                     else:
                         # Timeout or other failure
@@ -199,21 +211,48 @@ class DCSSDriver:
                                 f"LLM silent — no output for {elapsed_since_delta:.0f}s "
                                 f"(retry {retries}/{MAX_RETRIES})"
                             )
-                            prompt = continue_prompt
+                            
+                            # Auto-inject state for retry after silence
+                            try:
+                                if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                    state = self.dcss.get_state_text()
+                                    prompt = f"[Game State]\n{state}\n\n{continue_prompt}"
+                                else:
+                                    prompt = continue_prompt
+                            except Exception:
+                                prompt = continue_prompt
                         elif elapsed_since_tool > SILENT_TIMEOUT:
                             retries += 1
                             self.logger.warning(
                                 f"LLM narrating without tool calls for {elapsed_since_tool:.0f}s "
                                 f"(retry {retries}/{MAX_RETRIES})"
                             )
-                            prompt = continue_prompt
+                            
+                            # Auto-inject state for retry after no tools
+                            try:
+                                if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                    state = self.dcss.get_state_text()
+                                    prompt = f"[Game State]\n{state}\n\n{continue_prompt}"
+                                else:
+                                    prompt = continue_prompt
+                            except Exception:
+                                prompt = continue_prompt
                         else:
                             # Tool calls happened — it's playing, reset retries and nudges
                             retries = 0
                             nudge_count = 0
                             retries = 0
                             self.logger.info("Game still in progress, continuing...")
-                            prompt = continue_prompt
+                            
+                            # Auto-inject state for normal continuation
+                            try:
+                                if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                    state = self.dcss.get_state_text()
+                                    prompt = f"[Game State]\n{state}\n\n{continue_prompt}"
+                                else:
+                                    prompt = continue_prompt
+                            except Exception:
+                                prompt = continue_prompt
                             
                 except Exception as e:
                     self.logger.error(f"Error during LLM interaction: {e}")

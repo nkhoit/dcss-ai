@@ -42,12 +42,8 @@ class TestMockProvider:
             {"name": "start_game", "args": {
                 "species_key": "b", "background_key": "f", "weapon_key": "b"
             }},
-            {"name": "get_state_text", "args": {}},
             {"stop": True},
             {"name": "auto_explore", "args": {}},
-            {"name": "get_map", "args": {"radius": 5}},
-            {"name": "get_inventory", "args": {}},
-            {"name": "get_nearby_enemies", "args": {}},
             {"stop": True},
             {"name": "record_death", "args": {"cause": "mock test"}},
             {"stop": True, "text": "GAME_OVER"},
@@ -60,19 +56,18 @@ class TestMockProvider:
             await provider.start()
             session = await provider.create_session("test prompt", tools, "mock")
 
-            # First send: new_attempt → start_game → get_state → stop
+            # First send: new_attempt → start_game → stop
             r1 = await session.send("Start a game")
             assert not r1.completed
-            assert len(session.results) == 3
+            assert len(session.results) == 2
             assert session.results[0]["name"] == "new_attempt"
             assert session.results[1]["name"] == "start_game"
-            assert "HP" in session.results[2]["result"]
 
             # Verify game is actually running
             assert dcss._in_game is True
             assert dcss.hp > 0
 
-            # Second send: explore → map → inventory → enemies → stop
+            # Second send: explore → stop
             r2 = await session.send("Keep playing")
             assert not r2.completed
             assert dcss.turn > 0  # auto_explore advanced turns
@@ -87,20 +82,17 @@ class TestMockProvider:
 
         asyncio.run(run())
 
-    def test_all_state_query_tools(self, dcss):
-        """Verify all state query tools return without error."""
+    def test_remaining_state_query_tools(self, dcss):
+        """Verify remaining state query tools return without error."""
         script = [
             {"name": "new_attempt", "args": {}},
             {"name": "start_game", "args": {
                 "species_key": "b", "background_key": "f", "weapon_key": "b"
             }},
-            {"name": "get_state_text", "args": {}},
-            {"name": "get_map", "args": {"radius": 7}},
-            {"name": "get_map", "args": {"radius": 3}},
-            {"name": "get_inventory", "args": {}},
-            {"name": "get_nearby_enemies", "args": {}},
-            {"name": "get_messages", "args": {"n": 5}},
-            {"name": "get_stats", "args": {}},
+            {"name": "get_landmarks", "args": {}},
+            {"name": "read_notes", "args": {}},
+            {"name": "write_note", "args": {"text": "test note"}},
+            {"name": "read_notes", "args": {}},
             {"stop": True},
         ]
 
@@ -111,8 +103,8 @@ class TestMockProvider:
             await provider.start()
             session = await provider.create_session("test", tools, "mock")
             r = await session.send("Go")
-            # All 9 calls should have succeeded
-            assert len(session.results) == 9
+            # All 6 calls should have succeeded
+            assert len(session.results) == 6
             for entry in session.results:
                 assert isinstance(entry["result"], str), f"{entry['name']} returned non-string"
             await provider.stop()
