@@ -88,7 +88,9 @@ def _format_death_context(
     if existing_learnings:
         parts.append(f"\n## Existing Learnings (don't duplicate)\n{existing_learnings}")
 
-    parts.append("\nRespond with ONLY a JSON object. No markdown, no commentary, no questions.")
+    parts.append("""
+Respond with ONLY this JSON structure (no markdown, no commentary, no questions):
+{"summary": "one sentence", "what_went_wrong": "2-3 sentences", "learnings": [{"tier": "hard_rule|heuristic|note", "category": "monsters|tactics|builds|items|branches", "key": "snake_case_id", "text": "concise actionable learning"}]}""")
 
     return "\n".join(parts)
 
