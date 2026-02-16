@@ -151,7 +151,7 @@ def _use_item_handler(dcss: DCSSGame, key: str) -> str:
             return dcss.wield(key)
         elif base_type == 2:  # armour
             if equipped:
-                return f"{item_name} is already equipped. Use drop_item('{key}') to drop it."
+                return f"{item_name} is already equipped. Use unequip('{key}') to take it off."
             return dcss.wear(key)
         elif base_type == 7:  # potion
             return dcss.quaff(key)
@@ -159,7 +159,7 @@ def _use_item_handler(dcss: DCSSGame, key: str) -> str:
             return dcss.read_scroll(key)
         elif base_type == 6:  # jewellery
             if equipped:
-                return f"{item_name} is already equipped. Use drop_item('{key}') to drop it."
+                return f"{item_name} is already equipped. Use unequip('{key}') to remove it."
             return dcss.put_on_jewelry(key)
         elif base_type == 3:  # wand
             return dcss.evoke(key)
@@ -388,6 +388,39 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
         "handler": _make_handler(dcss, "drop", SlotParams)
     })
     tools[-1]["handler"]._default_msg = "Dropped."
+    
+    def _unequip_handler(params_dict):
+        key = params_dict.get("key", "")
+        if len(key) == 1 and key.isalpha():
+            slot_idx = ord(key.lower()) - ord('a')
+        else:
+            return f"Invalid slot key '{key}'."
+        raw_item = dcss._inventory.get(slot_idx)
+        if not raw_item:
+            return f"No item in slot {key}."
+        if not raw_item.get("equipped"):
+            return f"{raw_item.get('name', 'Item')} is not equipped."
+        base_type = raw_item.get("base_type")
+        if base_type == 2:  # armour
+            return dcss.take_off_armour(key)
+        elif base_type == 6:  # jewellery
+            return dcss.remove_jewelry(key)
+        elif base_type in (0, 9):  # weapon/staff — unwield by wielding bare hands
+            return dcss.wield("-")  # '-' for bare hands
+        return f"Can't unequip {raw_item.get('name', 'item')}."
+
+    tools.append({
+        "name": "unequip",
+        "description": "Take off or unwield an equipped item by slot letter. Use when swapping gear.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "key": {"type": "string", "description": "Inventory slot letter (a-z)"}
+            },
+            "required": ["key"]
+        },
+        "handler": _unequip_handler
+    })
     
     tools.append({
         "name": "zap_wand",
