@@ -132,7 +132,7 @@ class DeathAnalyzer:
     rule-based analysis otherwise.
     """
 
-    def __init__(self, kb: KnowledgeBase, provider=None, model: str = "claude-haiku-4.5"):
+    def __init__(self, kb: KnowledgeBase, provider=None, model: str = "claude-sonnet-4.5"):
         """Initialize analyzer.
 
         Args:
