@@ -86,6 +86,7 @@ class CopilotSession(LLMSession):
             "total_duration_ms": 0
         }
         self._current_message = []  # accumulate deltas
+        self._all_text = []  # accumulate all complete messages
         
         # Clear monologue for new session
         clear_monologue()
@@ -112,6 +113,7 @@ class CopilotSession(LLMSession):
             self._current_message = []
             if full_text.strip():
                 self._silent_tool_calls = 0
+                self._all_text.append(full_text.strip())
                 write_monologue(full_text)
                 ts = time.strftime('%Y-%m-%d %H:%M:%S')
                 ms = int(time.time() * 1000) % 1000
@@ -187,7 +189,7 @@ class CopilotSession(LLMSession):
             
             return SessionResult(
                 completed=True,
-                text="",
+                text="\n".join(self._all_text),
                 usage=self.usage_totals.copy()
             )
         except asyncio.TimeoutError:
