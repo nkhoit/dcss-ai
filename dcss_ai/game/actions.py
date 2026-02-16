@@ -444,9 +444,13 @@ class GameActions:
                         fight_actions_without_kill = 0
                     elif fight_actions_without_kill >= 10:
                         enemies_now = self.get_nearby_enemies()
-                        names = [e['name'] for e in enemies_now[:3]]
-                        stop_reason = f"prolonged fight without kills ({fight_actions_without_kill} actions): {', '.join(names)}"
-                        break
+                        non_trivial = [e for e in enemies_now if e.get("threat") not in ("trivial", "easy")]
+                        if non_trivial:
+                            names = [e['name'] for e in enemies_now[:3]]
+                            stop_reason = f"prolonged fight without kills ({fight_actions_without_kill} actions): {', '.join(names)}"
+                            break
+                        # Trivial enemies — keep going, reset counter
+                        fight_actions_without_kill = 0
                     
                     # Check if we died
                     if self._is_dead:
