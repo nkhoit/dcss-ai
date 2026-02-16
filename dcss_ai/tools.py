@@ -197,7 +197,7 @@ def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
     FREE_ACTIONS = {
         "get_landmarks", "write_note", "read_notes", "rip_page", "examine",
         "read_ui", "select_menu_item", "dismiss", "respond", "choose_stat",
-        "narrate", "new_attempt", "record_win", "start_game",
+        "narrate", "new_attempt", "record_win", "start_game", "suggest",
     }
 
     # Track last knowledge place for refresh logic
@@ -645,6 +645,40 @@ def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
             },
             "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')},{int(time.time()*1000)%1000:03d} 💭 {params.get('thought', '')}\n"), sys.stdout.flush(), "[Narrated]")[4]
         })
+
+    # --- Feedback ---
+
+    def _submit_feedback(params):
+        feedback_file = Path(__file__).parent.parent / "feedback.jsonl"
+        import json
+        from datetime import datetime
+        entry = {
+            "timestamp": datetime.now().isoformat(),
+            "category": params.get("category", "general"),
+            "message": params.get("message", ""),
+            "context": {
+                "place": f"{dcss._place}:{dcss._depth}" if dcss._place else None,
+                "xl": dcss._xl,
+                "species": getattr(dcss, '_species', None),
+            }
+        }
+        with open(feedback_file, "a") as f:
+            f.write(json.dumps(entry) + "\n")
+        return "[Feedback logged. Thanks!]"
+
+    tools.append({
+        "name": "suggest",
+        "description": "Submit a feature request or bug report to the developers. Use when you wish a tool worked differently, want a new parameter, or notice something broken about your interface.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "category": {"type": "string", "description": "Category: feature, bug, tool, balance, other", "default": "feature"},
+                "message": {"type": "string", "description": "Your suggestion or bug report. Be specific about what you want and why."},
+            },
+            "required": ["message"]
+        },
+        "handler": _submit_feedback
+    })
 
     # --- Game lifecycle ---
 

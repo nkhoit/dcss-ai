@@ -81,6 +81,7 @@ new_attempt()               # Call once at game start
 start_game(species_key, background_key, weapon_key)
 record_win()                # Call on win
 narrate(thought)            # Stream commentary (REQUIRED)
+suggest(message, category)  # Submit feedback/feature requests to developers
 ```
 
 ## Game Loop
