@@ -32,6 +32,10 @@ DEFAULTS = {
 
     # Overlay
     "overlay_port": 8889,   # SSE server port for stream overlay
+
+    # Post-death analyzer
+    "analyzer_enabled": True,           # LLM-based death analysis
+    "analyzer_model": "claude-haiku-4.5",  # cheap model for analysis
 }
 
 CONFIG_PATH = Path(__file__).parent.parent / "config.json"

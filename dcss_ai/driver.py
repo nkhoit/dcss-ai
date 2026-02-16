@@ -47,7 +47,8 @@ class DCSSDriver:
         # Initialize knowledge base and analyzer
         knowledge_dir = Path(__file__).parent.parent / "knowledge"
         self.kb = KnowledgeBase(knowledge_dir)
-        self.analyzer = DeathAnalyzer(self.kb)
+        # Analyzer gets provider after provider init in run_forever()
+        self.analyzer = None
         self._last_knowledge_place = None
 
         # Set narrate interval for game.py to read
@@ -159,7 +160,7 @@ class DCSSDriver:
             enemy_names = []
         
         try:
-            last_messages = self.dcss.get_messages()[-5:] if self.dcss.get_messages() else []
+            last_messages = self.dcss.get_messages()[-50:] if self.dcss.get_messages() else []
         except Exception:
             last_messages = []
         
@@ -228,7 +229,8 @@ class DCSSDriver:
                                 game_data["outcome"] = "death"
                                 self.kb.record_game(game_data)
                                 self.kb.update_meta(game_data)
-                                self.analyzer.apply(game_data)
+                                notepad = self.dcss.read_notes()
+                                await self.analyzer.apply(game_data, notepad=notepad)
                                 self.logger.info(f"Death recorded: {game_data['place']} XL{game_data['xl']}")
                             elif self.dcss._wins > wins_before:
                                 game_data = self.capture_death_data()  # same data capture
@@ -287,7 +289,8 @@ class DCSSDriver:
                                 game_data["outcome"] = "death"
                                 self.kb.record_game(game_data)
                                 self.kb.update_meta(game_data)
-                                self.analyzer.apply(game_data)
+                                notepad = self.dcss.read_notes()
+                                await self.analyzer.apply(game_data, notepad=notepad)
                                 self.logger.info(f"Death recorded: {game_data['place']} XL{game_data['xl']}")
                             elif self.dcss._wins > wins_before:
                                 game_data = self.capture_death_data()
@@ -387,6 +390,14 @@ class DCSSDriver:
         await self.provider.start()
         self.logger.info(f"LLM provider '{self.config["provider"]}' connected")
 
+        # Initialize analyzer with provider for LLM-based death analysis
+        analyzer_provider = self.provider if self.config.get("analyzer_enabled", True) else None
+        self.analyzer = DeathAnalyzer(
+            self.kb,
+            provider=analyzer_provider,
+            model=self.config.get("analyzer_model", "claude-haiku-4.5"),
+        )
+
         # Connect to DCSS server
         if not await self.connect_to_dcss():
             self.logger.error("Failed to connect to DCSS, exiting")
@@ -482,6 +493,10 @@ async def main():
                         help="Play one game then exit")
     parser.add_argument("--narrate-interval", dest="narrate_interval", type=int, default=None,
                         help=f"Actions between forced narrations, 0=disable (default: {DEFAULTS['narrate_interval']})")
+    parser.add_argument("--analyzer-model", dest="analyzer_model", default=None,
+                        help=f"Model for post-death analysis (default: {DEFAULTS['analyzer_model']})")
+    parser.add_argument("--no-analyzer", dest="analyzer_enabled", action="store_false", default=None,
+                        help="Disable LLM-based post-death analysis")
     parser.add_argument("--debug", action="store_true", default=False,
                         help="Enable debug logging (tool calls, etc.)")
     args = parser.parse_args()
@@ -496,6 +511,10 @@ async def main():
         cli_dict["debug"] = True
     else:
         cli_dict.pop("debug", None)
+    if args.analyzer_enabled is False:
+        cli_dict["analyzer_enabled"] = False
+    else:
+        cli_dict.pop("analyzer_enabled", None)
 
     config = load_config(cli_dict)
     driver = DCSSDriver(config)

@@ -249,8 +249,8 @@ class TestKnowledgeBase:
 class TestDeathAnalyzer:
     """Test DeathAnalyzer class."""
 
-    def test_analyze(self):
-        """Test death analysis."""
+    def test_analyze_rules(self):
+        """Test rule-based death analysis."""
         with tempfile.TemporaryDirectory() as tmpdir:
             kb = KnowledgeBase(Path(tmpdir))
             analyzer = DeathAnalyzer(kb)
@@ -270,15 +270,15 @@ class TestDeathAnalyzer:
                 "last_messages": ["The orc warrior hits you!"]
             }
             
-            suggestions = analyzer.analyze(death_data)
+            suggestions = analyzer.analyze_rules(death_data)
             
             # Should suggest updates for nearby enemies
             assert "monsters/orc_warrior" in suggestions
             assert "monsters/orc_priest" in suggestions
             assert suggestions["monsters/orc_warrior"]["deaths_caused"] == 1
 
-    def test_apply(self):
-        """Test applying death analysis to knowledge base."""
+    def test_apply_rules(self):
+        """Test applying rule-based analysis to knowledge base."""
         with tempfile.TemporaryDirectory() as tmpdir:
             kb = KnowledgeBase(Path(tmpdir))
             analyzer = DeathAnalyzer(kb)
@@ -298,7 +298,8 @@ class TestDeathAnalyzer:
                 "last_messages": []
             }
             
-            analyzer.apply(death_data)
+            # Test rule-based path directly (no provider = no LLM call)
+            analyzer._apply_rules(death_data)
             
             # Verify knowledge was updated
             monsters = kb.get_knowledge("monsters")
@@ -334,7 +335,7 @@ class TestDeathAnalyzer:
                 "last_messages": []
             }
             
-            analyzer.apply(death_data)
+            analyzer._apply_rules(death_data)
             
             # Verify count incremented
             monsters = kb.get_knowledge("monsters")
