@@ -41,17 +41,6 @@ class SpellParams(BaseModel):
 class OverlayParams(BaseModel):
     thought: str = Field(default="", description="Brief one-liner about what you're thinking (shown to stream viewers)")
 
-class DeathParams(BaseModel):
-    cause: str = Field(default="", description="Brief cause of death")
-
-class DeathJournalParams(BaseModel):
-    cause: str = Field(description="Brief cause of death from game messages")
-    reflection: str = Field(description="What could have helped — your reflection on this death")
-
-class LearningParams(BaseModel):
-    text: str = Field(description="A lesson learned from this game. Be specific and actionable. Include [situation: ...] tags when context-dependent. Example: '- Don't berserk when surrounded [situation: 3+ enemies, no corridor, post-berserk exhaustion = death]'")
-    section: str = Field(default="Heuristics", description="Section: Hard Rules, Heuristics, Notes, Melee Builds, Caster Builds, Species Notes, or a new section name")
-
 class StartGameParams(BaseModel):
     species_key: str = Field(default="b", description=(
         "Species key (0.34): a=Gnoll, b=Minotaur, c=Merfolk, d=Gargoyle, "
@@ -76,37 +65,6 @@ def _make_handler(dcss: DCSSGame, method_name: str, param_model: type, *args, **
     def handler(params_dict: Dict[str, Any]) -> str:
         # Validate parameters using Pydantic model
         params = param_model(**params_dict)
-        
-        # Special case: write_learning doesn't use DCSSGame
-        if hasattr(params, 'text') and method_name == 'write_learning':
-            learnings_path = Path(__file__).parent.parent / "learnings.md"
-            section = getattr(params, 'section', 'Heuristics')
-            text = params.text
-            
-            content = learnings_path.read_text() if learnings_path.exists() else ""
-            
-            # Find the section header and append after its last bullet
-            header = f"## {section}"
-            if header in content:
-                # Find the next section header after this one
-                header_pos = content.index(header)
-                after_header = content[header_pos + len(header):]
-                next_section = after_header.find("\n## ")
-                if next_section == -1:
-                    # Last section — append at end
-                    content = content.rstrip() + f"\n- {text}\n"
-                else:
-                    insert_pos = header_pos + len(header) + next_section
-                    content = content[:insert_pos].rstrip() + f"\n- {text}\n" + content[insert_pos:]
-            else:
-                # Section doesn't exist — add it before Recent Deaths
-                if "## Recent Deaths" in content:
-                    content = content.replace("## Recent Deaths", f"## {section}\n- {text}\n\n## Recent Deaths")
-                else:
-                    content = content.rstrip() + f"\n\n## {section}\n- {text}\n"
-            
-            learnings_path.write_text(content)
-            return f"Learning recorded in [{section}]."
         
         # Call the DCSS method
         method = getattr(dcss, method_name)
@@ -603,19 +561,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     })
     
     tools.append({
-        "name": "record_death",
-        "description": "Record a death. Call when you die. Increments death counter.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "cause": {"type": "string", "description": "Brief cause of death", "default": ""}
-            },
-            "required": []
-        },
-        "handler": lambda params: (dcss.record_death(params.get('cause', '')), f"Death #{dcss._deaths} recorded.")[1]
-    })
-    
-    tools.append({
         "name": "record_win",
         "description": "Record a win. Call when you escape with the Orb.",
         "parameters": {
@@ -624,22 +569,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
             "required": []
         },
         "handler": lambda params: (dcss.record_win(), f"Win #{dcss._wins} recorded!")[1]
-    })
-    
-    # --- Learnings ---
-    
-    tools.append({
-        "name": "write_learning",
-        "description": "Record a lesson to learnings.md under a tier. Call during gameplay, after death, AND after wins. Be specific. Include [situation: ...] tags when the learning is context-dependent. Example: '- Don't berserk when surrounded [situation: 3+ enemies, no corridor, post-berserk exhaustion = death]'. These persist across all future games.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "text": {"type": "string", "description": "A lesson learned. Be specific and actionable. Include [situation: ...] tags when context-dependent."},
-                "section": {"type": "string", "description": "Tier: Hard Rules, Heuristics, Notes, Melee Builds, Caster Builds, Species Notes, or a new one", "default": "Heuristics"}
-            },
-            "required": ["text"]
-        },
-        "handler": _make_handler(dcss, "write_learning", LearningParams)
     })
     
     # --- Narration ---
@@ -655,84 +584,6 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
             "required": ["thought"]
         },
         "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')},{int(time.time()*1000)%1000:03d} 💭 {params.get('thought', '')}\n"), sys.stdout.flush(), "[Narrated]")[4]
-    })
-    
-    # --- Death Journal ---
-    
-    def _record_death_journal(params_dict: Dict[str, Any]) -> str:
-        params = DeathJournalParams(**params_dict)
-        learnings_path = Path(__file__).parent.parent / "learnings.md"
-        content = learnings_path.read_text() if learnings_path.exists() else ""
-        
-        # Count existing deaths
-        import re
-        existing_deaths = len(re.findall(r'### Death #\d+', content))
-        death_num = existing_deaths + 1
-        
-        # Pull game state
-        try:
-            stats = dcss.get_stats()
-        except Exception:
-            stats = "unknown"
-        
-        place = getattr(dcss, '_place', 'unknown')
-        species = getattr(dcss, '_species', 'unknown')
-        turn = getattr(dcss, '_turn', '?')
-        hp = getattr(dcss, '_hp', '?')
-        max_hp = getattr(dcss, '_max_hp', '?')
-        
-        try:
-            enemies = dcss.get_nearby_enemies()
-            if isinstance(enemies, list):
-                enemy_names = [e.get('name', str(e)) for e in enemies[:5]] if enemies else ['none']
-            else:
-                enemy_names = [str(enemies)] if enemies else ['none']
-        except Exception:
-            enemy_names = ['unknown']
-        
-        try:
-            inventory = dcss.get_inventory()
-            if isinstance(inventory, list):
-                inv_highlights = [item.get('name', str(item)) for item in inventory[:8]]
-            else:
-                inv_highlights = [str(inventory)] if inventory else ['none']
-        except Exception:
-            inv_highlights = ['unknown']
-        
-        entry = (
-            f"\n### Death #{death_num}: {place}, {species}, Turn {turn}\n"
-            f"- Cause: {params.cause}\n"
-            f"- HP when died: {hp}/{max_hp}\n"
-            f"- Nearby enemies: {', '.join(enemy_names)}\n"
-            f"- Inventory highlights: {', '.join(inv_highlights)}\n"
-            f"- What could have helped: {params.reflection}\n"
-        )
-        
-        # Insert into Death Journal section
-        if "## Death Journal" in content:
-            idx = content.index("## Death Journal")
-            rest = content[idx + len("## Death Journal"):]
-            # Remove the "(no deaths recorded yet)" placeholder if present
-            rest = rest.replace("\n(no deaths recorded yet)", "")
-            content = content[:idx] + "## Death Journal" + rest.rstrip() + "\n" + entry
-        else:
-            content = content.rstrip() + "\n\n## Death Journal\n" + entry
-        
-        learnings_path.write_text(content)
-        return f"Death #{death_num} recorded in journal."
-    
-    tools.append({
-        "name": "record_death_journal",
-        "description": "Record structured death context to the Death Journal in learnings.md. Call after dying, alongside record_death(). Auto-pulls game state (place, species, turn, HP, enemies, inventory).",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "cause": {"type": "string", "description": "Brief cause of death from game messages"},
-                "reflection": {"type": "string", "description": "What could have helped — your reflection on this death"}
-            },
-            "required": ["cause", "reflection"]
-        },
-        "handler": _record_death_journal
     })
     
     # --- Game lifecycle ---

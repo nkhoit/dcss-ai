@@ -1,0 +1,10 @@
+{
+  "MiBe": {
+    "species": "Minotaur",
+    "background": "Berserker",
+    "god": "Trog",
+    "strategy": "Tab-fight most things. Berserk for tough fights but only with escape route. Train Fighting + weapon skill.",
+    "skill_priority": ["Fighting", "weapon_skill", "Armour", "Dodging"],
+    "confidence": 0.7
+  }
+}

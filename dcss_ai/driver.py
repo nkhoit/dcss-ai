@@ -26,6 +26,8 @@ from dcss_ai.tools import build_tools
 from dcss_ai.providers import get_provider
 from dcss_ai.providers.base import LLMProvider, LLMSession
 from dcss_ai.config import load_config, DEFAULTS
+from dcss_ai.knowledge import KnowledgeBase
+from dcss_ai.analyzer import DeathAnalyzer
 
 
 class DCSSDriver:
@@ -41,6 +43,12 @@ class DCSSDriver:
             "cache_write_tokens": 0, "premium_requests": 0, "api_calls": 0,
             "total_duration_ms": 0,
         }
+        
+        # Initialize knowledge base and analyzer
+        knowledge_dir = Path(__file__).parent.parent / "knowledge"
+        self.kb = KnowledgeBase(knowledge_dir)
+        self.analyzer = DeathAnalyzer(self.kb)
+        self._last_knowledge_place = None
 
         # Set narrate interval for game.py to read
         os.environ["DCSS_NARRATE_INTERVAL"] = str(config["narrate_interval"])
@@ -69,16 +77,6 @@ class DCSSDriver:
         if self._active_session and hasattr(self._active_session, '_shutdown'):
             self._active_session._shutdown = True
 
-    def _check_consolidation(self):
-        """Check if it's time to recommend learning consolidation."""
-        import re
-        learnings_path = Path(__file__).parent.parent / "learnings.md"
-        if learnings_path.exists():
-            content = learnings_path.read_text()
-            death_count = len(re.findall(r'### Death #\d+', content))
-            if death_count > 0 and death_count % 10 == 0:
-                self.logger.info(f"Consolidation recommended after {death_count} deaths")
-
     async def connect_to_dcss(self) -> bool:
         """Connect to DCSS server."""
         try:
@@ -90,23 +88,77 @@ class DCSSDriver:
             self.logger.error(f"DCSS connection error: {e}")
             return False
 
-    def load_system_prompt(self) -> str:
-        """Load system prompt from file and append learnings."""
+    def load_system_prompt(self, place: str = None, xl: int = None) -> str:
+        """Load system prompt from file and append knowledge.
+        
+        Args:
+            place: Current location (e.g. "D:3")
+            xl: Current experience level
+        """
         prompt_path = Path(__file__).parent.parent / "system_prompt.md"
         with open(prompt_path, 'r') as f:
             system_prompt = f.read()
 
-        learnings_path = Path(__file__).parent.parent / "learnings.md"
-        if learnings_path.exists():
-            with open(learnings_path, 'r') as f:
-                learnings = f.read()
-            system_prompt += f"\n\n---\n\n## Your Accumulated Learnings\n\n{learnings}"
+        # Append knowledge from knowledge base (filtered by game phase)
+        knowledge = self.kb.get_knowledge_for_context(place, xl)
+        system_prompt += f"\n\n---\n\n{knowledge}"
 
         return system_prompt
 
+    def capture_death_data(self) -> dict:
+        """Capture structured death data from game state.
+        
+        Returns:
+            Dict with death information for knowledge base
+        """
+        from datetime import datetime
+        
+        try:
+            stats = self.dcss.get_stats()
+        except Exception:
+            stats = {}
+        
+        try:
+            messages = self.dcss.get_messages()
+            cause = messages[-1] if messages else "unknown"
+        except Exception:
+            cause = "unknown"
+        
+        try:
+            inventory = self.dcss.get_inventory()
+            inv_summary = [item.get("name", str(item)) for item in inventory[:10]] if inventory else []
+        except Exception:
+            inv_summary = []
+        
+        try:
+            enemies = self.dcss.get_nearby_enemies()
+            enemy_names = [e.get("name", str(e)) for e in enemies] if enemies else []
+        except Exception:
+            enemy_names = []
+        
+        try:
+            last_messages = self.dcss.get_messages()[-5:] if self.dcss.get_messages() else []
+        except Exception:
+            last_messages = []
+        
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "place": stats.get("place", "unknown"),
+            "xl": stats.get("xl", 0),
+            "turn": getattr(self.dcss, '_turn_count', 0),
+            "hp_max": stats.get("hp_max", 0),
+            "species": getattr(self.dcss, '_species', 'unknown'),
+            "background": getattr(self.dcss, '_background', 'unknown'),
+            "god": stats.get("god", "none"),
+            "cause": cause,
+            "inventory_summary": inv_summary,
+            "nearby_enemies": enemy_names,
+            "last_messages": last_messages,
+        }
+
     async def run_game_session(self) -> None:
         """Run one complete game as a single LLM session."""
-        system_prompt = self.load_system_prompt()
+        system_prompt = self.load_system_prompt()  # Load with no place/xl initially
         tools = build_tools(self.dcss)
 
         session = await self.provider.create_session(system_prompt, tools, self.config["model"])
@@ -148,9 +200,13 @@ class DCSSDriver:
                         # SDK thinks it's done — but check if the game actually ended
                         if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
                             self.logger.info("Session completed — game ended (death/win)")
-                            # Consolidation trigger
+                            # Record death to knowledge base
                             if self.dcss._deaths > deaths_before:
-                                self._check_consolidation()
+                                death_data = self.capture_death_data()
+                                self.kb.record_death(death_data)
+                                self.kb.update_meta(death_data)
+                                self.analyzer.apply(death_data)
+                                self.logger.info(f"Death recorded to knowledge base: {death_data['place']} XL{death_data['xl']}")
                             self.logger.info(
                                 f"Session usage: {result.usage.get('api_calls', 0)} API calls, "
                                 f"{result.usage.get('input_tokens', 0):,} input tokens, "
@@ -199,7 +255,11 @@ class DCSSDriver:
                         if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
                             self.logger.info("Game ended (death/win detected), ending session")
                             if self.dcss._deaths > deaths_before:
-                                self._check_consolidation()
+                                death_data = self.capture_death_data()
+                                self.kb.record_death(death_data)
+                                self.kb.update_meta(death_data)
+                                self.analyzer.apply(death_data)
+                                self.logger.info(f"Death recorded to knowledge base: {death_data['place']} XL{death_data['xl']}")
                             break
 
                         elapsed_since_tool = _time.time() - session.last_tool_time

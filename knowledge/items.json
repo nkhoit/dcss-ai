@@ -1,0 +1,19 @@
+{
+  "potion_of_heal_wounds": {
+    "priority": "high",
+    "when": "HP below 30% in combat",
+    "confidence": 0.8
+  },
+  "scroll_of_teleportation": {
+    "priority": "high",
+    "when": "About to die, surrounded, no escape. Use BEFORE critically low.",
+    "keep_minimum": 2,
+    "confidence": 0.8
+  },
+  "scroll_of_blinking": {
+    "priority": "critical",
+    "when": "Emergency escape. Better than teleport (controlled).",
+    "keep_minimum": 1,
+    "confidence": 0.7
+  }
+}

@@ -45,7 +45,6 @@ class TestMockProvider:
             {"stop": True},
             {"name": "auto_explore", "args": {}},
             {"stop": True},
-            {"name": "record_death", "args": {"cause": "mock test"}},
             {"stop": True, "text": "GAME_OVER"},
         ]
 
@@ -72,11 +71,10 @@ class TestMockProvider:
             assert not r2.completed
             assert dcss.turn > 0  # auto_explore advanced turns
 
-            # Third send: record_death → stop (completed)
+            # Third send: stop (completed)
             dcss._is_dead = True  # simulate server death signal
             r3 = await session.send("Continue")
             assert r3.completed
-            assert dcss._deaths >= 1
 
             await provider.stop()
 

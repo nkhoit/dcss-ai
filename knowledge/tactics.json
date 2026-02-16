@@ -1,0 +1,52 @@
+{
+  "retreat_threshold": {
+    "rule": "HP below 50% = retreat immediately, don't gamble",
+    "confidence": 0.9,
+    "deaths_validated": 5
+  },
+  "corridor_fighting": {
+    "rule": "Retreat to corridors when facing 2+ enemies — fight 1v1",
+    "confidence": 0.9,
+    "deaths_validated": 4
+  },
+  "berserk_safety": {
+    "rule": "Don't berserk when surrounded — post-exhaustion slow = death. Only berserk with 1-2 enemies and escape route",
+    "confidence": 0.9,
+    "deaths_validated": 3
+  },
+  "rest_after_combat": {
+    "rule": "Rest after every fight before exploring further",
+    "confidence": 0.8,
+    "deaths_validated": 2
+  },
+  "auto_fight_threshold": {
+    "rule": "Tab-fight only trivial enemies (rats, bats, worms). For anything else, assess first",
+    "confidence": 0.7,
+    "deaths_validated": 2
+  },
+  "teleport_scrolls": {
+    "rule": "Always carry 2+ teleport scrolls after D:5",
+    "confidence": 0.7,
+    "deaths_validated": 1
+  },
+  "read_messages": {
+    "rule": "Read messages carefully — they tell you threat level",
+    "confidence": 0.8,
+    "deaths_validated": 1
+  },
+  "stairs_escape": {
+    "rule": "Stairs are an escape route — remember where they are",
+    "confidence": 0.8,
+    "deaths_validated": 1
+  },
+  "rest_check": {
+    "rule": "If rest() does nothing, there's probably an enemy you haven't seen",
+    "confidence": 0.7,
+    "deaths_validated": 1
+  },
+  "injured_fighting": {
+    "rule": "When 'Too injured to fight recklessly!' appears, use move(direction) toward the enemy instead of auto_fight",
+    "confidence": 0.8,
+    "deaths_validated": 2
+  }
+}

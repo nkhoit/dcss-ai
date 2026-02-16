@@ -1,0 +1,19 @@
+{
+  "D": {
+    "floors": "1-15",
+    "notes": "Main dungeon. Difficulty scales gradually. Watch for uniques.",
+    "key_threats_by_depth": {
+      "1-5": ["adder", "gnoll", "sigmund", "robin"],
+      "6-10": ["ogre", "centaur", "orc_pack"],
+      "11-15": ["two-headed ogre", "yak pack", "hydra"]
+    }
+  },
+  "Lair": {
+    "floors": "1-5",
+    "notes": "Animal-themed. Enter around XL12-14. Easier than deep Dungeon.",
+    "key_threats_by_depth": {
+      "1-3": ["yak", "komodo_dragon", "black_mamba"],
+      "4-5": ["death_yak", "catoblepas"]
+    }
+  }
+}

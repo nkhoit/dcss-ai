@@ -1,0 +1,60 @@
+{
+  "hydra": {
+    "threat": "high",
+    "strategy": "Never melee with bladed weapons. Use clubs, magic, or wands of flame. Fire is ideal.",
+    "weaknesses": ["fire"],
+    "resistances": [],
+    "min_xl": 8,
+    "confidence": 0.95,
+    "deaths_caused": 3
+  },
+  "sigmund": {
+    "threat": "high",
+    "strategy": "Flee if XL<5. Has hexes (confuse, paralyze) and scythe. Come back later.",
+    "min_xl": 5,
+    "confidence": 0.9,
+    "deaths_caused": 2
+  },
+  "centaur": {
+    "threat": "medium",
+    "strategy": "Throwing enemy — close distance quickly or use cover. Don't fight in open.",
+    "confidence": 0.7,
+    "deaths_caused": 1
+  },
+  "orc_pack": {
+    "threat": "high",
+    "strategy": "Never fight in the open. Lure to corridor for 1v1.",
+    "confidence": 0.8,
+    "deaths_caused": 2
+  },
+  "jelly": {
+    "threat": "medium",
+    "strategy": "Corrodes equipment on melee. Avoid melee if possible, use ranged/magic.",
+    "confidence": 0.7,
+    "deaths_caused": 1
+  },
+  "ball_python": {
+    "threat": "low",
+    "strategy": "Constriction damage in groups is dangerous. Kill first to avoid being held.",
+    "confidence": 0.6,
+    "deaths_caused": 1
+  },
+  "adder": {
+    "threat": "medium",
+    "strategy": "Poisonous — kill quickly or retreat if low HP",
+    "confidence": 0.6,
+    "deaths_caused": 1
+  },
+  "gnoll": {
+    "threat": "medium",
+    "strategy": "Often come in packs. Use corridors to fight 1v1.",
+    "confidence": 0.5,
+    "deaths_caused": 1
+  },
+  "robin": {
+    "threat": "medium",
+    "strategy": "Goblin unique that summons allies. Kill quickly before overwhelmed.",
+    "confidence": 0.5,
+    "deaths_caused": 1
+  }
+}

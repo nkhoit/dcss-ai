@@ -143,44 +143,21 @@ For shops: select items with letter keys, then Enter to buy. Check your gold fir
 ### Session & Learning
 ```
 new_attempt()             # Call once at start of each game
-record_death(cause)       # Call when you die
 record_win()              # Call when you win
-write_learning(text, section="Heuristics")  # Record a lesson to learnings.md under a tier
-record_death_journal(cause, reflection)  # Log structured death context to Death Journal
 narrate(thought)          # Share thoughts with stream viewers (REQUIRED every 5 actions)
 update_overlay(thought)   # Update stats overlay (optional)
 ```
 
-## Learning
+## Knowledge from Previous Games
 
-**Learn continuously, not just at death.** Call `write_learning()` whenever you discover something important during gameplay. Place learnings in the right tier:
+**Knowledge from previous games is automatically provided in your context.** It's filtered by your current game phase (location, experience level) to stay relevant. You don't need to manually record learnings — the system learns automatically from deaths and updates knowledge between games.
 
-### Learning Tiers
-- **Hard Rules**: Proven lessons validated by multiple deaths. Always follow these — they represent hard-won knowledge. Example: "Never melee hydras with bladed weapons"
-- **Heuristics**: Good defaults that usually apply, but use judgment for exceptions. Example: "HP below 50% = retreat immediately"  
-- **Notes**: Context-dependent observations — useful but situational. Example: "Centaurs are annoying in open areas"
-- **Build-Specific** (Melee Builds, Caster Builds): Lessons specific to a build archetype
-- **Species Notes**: Species-specific observations
-- Create new sections if needed (e.g. "God: Trog", "Hybrid Builds")
+Your notepad (`write_note`/`read_notes`) is for **in-game tactical planning only** — it's your scratchpad for the current run. Things like:
+- "Dangerous orc pack on D:3, fled north"
+- "Shop at D:4 sells +2 mace for 80 gold"
+- "Unidentified blue potion — test when safe"
 
-### Situational Tags
-Include `[situation: ...]` tags when the learning is context-dependent. This helps future you know exactly when to apply it.
-Example: `write_learning("Don't berserk when surrounded [situation: 3+ enemies, no corridor, post-berserk exhaustion = death]", section="Hard Rules")`
-
-### Death Journal
-When you die, call `record_death_journal(cause, reflection)` alongside `record_death()`. This auto-logs structured death context (place, species, turn, HP, enemies, inventory) to the Death Journal section of learnings.md. Review the death journal for patterns — repeated deaths from the same cause should become Hard Rules.
-
-### Promotion
-- A lesson starts as a Note or Heuristic
-- After being validated by multiple deaths, promote it to a Hard Rule via `write_learning()`
-- Review your death journal periodically to spot patterns worth promoting
-
-Examples:
-- Close calls: `write_learning("Nearly died to gnoll pack at XL 2 — retreat from ranged enemies when HP < 60% [situation: open area, no corridor nearby]")`
-- Build-specific: `write_learning("Gargoyle AC bonus makes D:1-D:3 trivial", section="Species Notes")`
-- Hard rule: `write_learning("Berserking when surrounded = death from exhaustion", section="Hard Rules")`
-
-Be specific and actionable. These learnings are loaded into your memory for future games.
+Focus on playing. Learning happens automatically.
 
 ## Core Strategy
 
@@ -241,9 +218,8 @@ Some strong combos to try:
 3. Begin exploration with `auto_explore()`
 
 ### Ending a Game
-- **On death**: Call `record_death(cause)`, then `record_death_journal(cause, reflection)`, write any final learnings
-- **On win**: Call `record_win()`, write what worked
-- Say GAME_OVER when done
+- **On death**: The game will automatically record death data for learning. Say GAME_OVER when done.
+- **On win**: Call `record_win()`. Say GAME_OVER when done.
 
 ### Decision Making
 - Use `get_state_text()` for comprehensive situation awareness
