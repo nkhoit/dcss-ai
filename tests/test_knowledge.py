@@ -41,8 +41,8 @@ class TestKnowledgeBase:
             kb.record_death(death_data)
             
             # Verify file exists and contains data
-            assert kb.deaths_path.exists()
-            with open(kb.deaths_path) as f:
+            assert kb.games_path.exists()
+            with open(kb.games_path) as f:
                 line = f.readline()
                 loaded = json.loads(line)
                 assert loaded["place"] == "D:3"

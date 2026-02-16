@@ -38,49 +38,54 @@ class KnowledgeBase:
         self.items_path = self.dir / "items.json"
         self.branches_path = self.dir / "branches.json"
         self.builds_path = self.dir / "builds.json"
-        self.deaths_path = self.dir / "deaths.jsonl"
+        self.games_path = self.dir / "games.jsonl"
         self.meta_path = self.dir / "meta.json"
     
-    def record_death(self, death_data: dict) -> None:
-        """Append structured death to deaths.jsonl.
+    def record_game(self, game_data: dict) -> None:
+        """Append structured game result to games.jsonl.
         
         Args:
-            death_data: Death information with keys:
-                - timestamp: ISO format timestamp
-                - place: location (e.g. "D:3")
-                - xl: experience level
-                - turn: turn count
-                - cause: cause of death
-                - hp_max: maximum HP
-                - species: character species
-                - background: character background
-                - god: god worshipped
-                - inventory_summary: list of item names
-                - nearby_enemies: list of enemy names
-                - last_messages: list of recent game messages
+            game_data: Game information with keys:
+                - outcome: "death" or "win"
+                - timestamp, place, xl, turn, cause, hp_max,
+                  species, background, god, inventory_summary,
+                  nearby_enemies, last_messages
         """
-        with open(self.deaths_path, 'a') as f:
-            f.write(json.dumps(death_data) + '\n')
+        with open(self.games_path, 'a') as f:
+            f.write(json.dumps(game_data) + '\n')
     
-    def get_deaths(self, limit: int = 50) -> List[dict]:
-        """Read recent deaths from deaths.jsonl.
+    # Keep backward compat
+    def record_death(self, death_data: dict) -> None:
+        """Record a death. Delegates to record_game with outcome='death'."""
+        death_data.setdefault("outcome", "death")
+        self.record_game(death_data)
+    
+    def get_games(self, limit: int = 50, outcome: str = None) -> List[dict]:
+        """Read recent games from games.jsonl.
         
         Args:
-            limit: Maximum number of deaths to return (most recent)
+            limit: Maximum number of games to return (most recent)
+            outcome: Filter by "death" or "win" (None = all)
             
         Returns:
-            List of death data dicts, newest first
+            List of game data dicts, newest first
         """
-        if not self.deaths_path.exists():
+        if not self.games_path.exists():
             return []
         
-        deaths = []
-        with open(self.deaths_path, 'r') as f:
+        games = []
+        with open(self.games_path, 'r') as f:
             for line in f:
                 if line.strip():
-                    deaths.append(json.loads(line))
+                    entry = json.loads(line)
+                    if outcome is None or entry.get("outcome") == outcome:
+                        games.append(entry)
         
-        return deaths[-limit:] if limit else deaths
+        return games[-limit:] if limit else games
+    
+    # Keep backward compat
+    def get_deaths(self, limit: int = 50) -> List[dict]:
+        return self.get_games(limit=limit, outcome="death")
     
     def get_meta(self) -> dict:
         """Get run statistics.
@@ -115,13 +120,18 @@ class KnowledgeBase:
         """Update meta.json after a death.
         
         Args:
-            death_data: Death data from record_death
+            death_data: Game data from record_game/record_death
         """
         meta = self.get_meta()
         
         # Update counts
         meta["total_games"] += 1
-        meta["total_deaths"] += 1
+        outcome = death_data.get("outcome", "death")
+        if outcome == "death":
+            meta["total_deaths"] += 1
+        else:
+            meta.setdefault("total_wins", 0)
+            meta["total_wins"] += 1
         
         # Update best stats
         xl = death_data.get("xl", 0)

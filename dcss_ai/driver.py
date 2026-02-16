@@ -222,13 +222,21 @@ class DCSSDriver:
                         # SDK thinks it's done — but check if the game actually ended
                         if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
                             self.logger.info("Session completed — game ended (death/win)")
-                            # Record death to knowledge base
+                            # Record game to knowledge base
                             if self.dcss._deaths > deaths_before:
-                                death_data = self.capture_death_data()
-                                self.kb.record_death(death_data)
-                                self.kb.update_meta(death_data)
-                                self.analyzer.apply(death_data)
-                                self.logger.info(f"Death recorded to knowledge base: {death_data['place']} XL{death_data['xl']}")
+                                game_data = self.capture_death_data()
+                                game_data["outcome"] = "death"
+                                self.kb.record_game(game_data)
+                                self.kb.update_meta(game_data)
+                                self.analyzer.apply(game_data)
+                                self.logger.info(f"Death recorded: {game_data['place']} XL{game_data['xl']}")
+                            elif self.dcss._wins > wins_before:
+                                game_data = self.capture_death_data()  # same data capture
+                                game_data["outcome"] = "win"
+                                game_data["cause"] = "Won the game!"
+                                self.kb.record_game(game_data)
+                                self.kb.update_meta(game_data)
+                                self.logger.info(f"Win recorded: {game_data['place']} XL{game_data['xl']}")
                             self.logger.info(
                                 f"Session usage: {result.usage.get('api_calls', 0)} API calls, "
                                 f"{result.usage.get('input_tokens', 0):,} input tokens, "
@@ -275,11 +283,19 @@ class DCSSDriver:
                         if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
                             self.logger.info("Game ended (death/win detected), ending session")
                             if self.dcss._deaths > deaths_before:
-                                death_data = self.capture_death_data()
-                                self.kb.record_death(death_data)
-                                self.kb.update_meta(death_data)
-                                self.analyzer.apply(death_data)
-                                self.logger.info(f"Death recorded to knowledge base: {death_data['place']} XL{death_data['xl']}")
+                                game_data = self.capture_death_data()
+                                game_data["outcome"] = "death"
+                                self.kb.record_game(game_data)
+                                self.kb.update_meta(game_data)
+                                self.analyzer.apply(game_data)
+                                self.logger.info(f"Death recorded: {game_data['place']} XL{game_data['xl']}")
+                            elif self.dcss._wins > wins_before:
+                                game_data = self.capture_death_data()
+                                game_data["outcome"] = "win"
+                                game_data["cause"] = "Won the game!"
+                                self.kb.record_game(game_data)
+                                self.kb.update_meta(game_data)
+                                self.logger.info(f"Win recorded: {game_data['place']} XL{game_data['xl']}")
                             break
 
                         elapsed_since_tool = _time.time() - session.last_tool_time
