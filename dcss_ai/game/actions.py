@@ -279,6 +279,10 @@ class GameActions:
         """
         import time as _time
         
+        # Dismiss any open menus/popups first
+        if self._current_menu or self._current_popup:
+            self.dismiss()
+        
         actions = 0
         xl_start = self._xl
         floor_logs = {}  # place -> list of events
@@ -500,7 +504,7 @@ class GameActions:
                     continue
                 
                 # Floor fully explored
-                if "Floor fully explored" in text or turn_before == self._turn:
+                if "Floor fully explored" in text:
                     if auto_descend:
                         # Try to descend
                         log("Floor fully explored, descending")
@@ -524,22 +528,14 @@ class GameActions:
                             stop_reason = "floor explored but couldn't reach stairs"
                             break
                     else:
-                        # Try to go to stairs and stop there
-                        depth_before = self._depth
-                        desc_result = self.go_downstairs()
-                        actions += 1
-                        desc_text = " ".join(desc_result)
-                        
-                        if self._depth > depth_before:
-                            # We actually descended — that's fine, report it
-                            new_floor = f"{self._place}:{self._depth}"
-                            log(f"Descended to {new_floor}")
-                            stop_reason = f"descended to {new_floor}"
-                        elif "Not on stairs" in desc_text:
-                            stop_reason = "floor explored but couldn't reach stairs"
-                        else:
-                            stop_reason = "floor fully explored, standing on downstairs"
+                        stop_reason = "floor fully explored"
                         break
+                
+                # Explore didn't advance turn — might be stuck (menu open, etc)
+                if turn_before == self._turn:
+                    no_progress_count += 1
+                    # Will be caught by the no_progress check at top of loop
+                    continue
                 
                 # Rest if HP not full and no enemies
                 if self._hp < self._max_hp and not self.get_nearby_enemies():
