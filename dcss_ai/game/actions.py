@@ -286,6 +286,7 @@ class GameActions:
         kills = []
         pickups = []
         stop_reason = "action limit reached"
+        fight_actions_without_kill = 0
         
         def log(event: str):
             floor = f"{self._place}:{self._depth}" if self._place else "unknown"
@@ -388,11 +389,14 @@ class GameActions:
                     # All enemies are trivial/easy — auto fight
                     result = self.auto_fight()
                     actions += 1
+                    fight_actions_without_kill += 1
                     text = " ".join(result)
                     
                     # Check for kills in the messages
+                    got_kill = False
                     for m in result:
                         if "you kill" in m.lower() or "you destroy" in m.lower():
+                            got_kill = True
                             # Extract monster name
                             for part in m.split("!"):
                                 pl = part.lower().strip()
@@ -400,6 +404,14 @@ class GameActions:
                                     name = pl.split("the ", 1)[-1].rstrip(".!") if "the " in pl else pl.split(" ", 2)[-1].rstrip(".!")
                                     kills.append(name)
                                     log(f"Killed {name}")
+                    
+                    if got_kill:
+                        fight_actions_without_kill = 0
+                    elif fight_actions_without_kill >= 10:
+                        enemies_now = self.get_nearby_enemies()
+                        names = [e['name'] for e in enemies_now[:3]]
+                        stop_reason = f"prolonged fight without kills ({fight_actions_without_kill} actions): {', '.join(names)}"
+                        break
                     
                     # Check if we died
                     if self._is_dead:
@@ -427,6 +439,7 @@ class GameActions:
             
             else:
                 # No enemies — try exploring
+                fight_actions_without_kill = 0
                 turn_before = self._turn
                 result = self.auto_explore()
                 actions += 1
