@@ -137,6 +137,65 @@ class GameState:
             lines.append(f"{f['type']} ({f['glyph']}) \u2014 {f['direction']}, {f['distance']} tiles away (dx={f['x']}, dy={f['y']})")
         return "\n".join(lines)
 
+    WALKABLE_GLYPHS = frozenset('.+\'><_#@')  # # can be walkable in some cases but we exclude it below
+
+    def path_toward(self, target: str = "upstairs") -> str:
+        """BFS pathfind to nearest landmark of given type. Returns next move direction or error.
+        
+        target: 'upstairs', 'downstairs', 'altar'
+        """
+        from collections import deque
+
+        LANDMARK_GLYPHS = {'upstairs': '<', 'downstairs': '>', 'altar': '_'}
+        target_glyph = LANDMARK_GLYPHS.get(target)
+        if not target_glyph:
+            return f"Unknown target '{target}'. Use: upstairs, downstairs, altar"
+
+        px, py = self._position
+        if not self._map_cells:
+            return "No map data available"
+
+        # Find all target positions
+        targets = set()
+        for (x, y), g in self._map_cells.items():
+            if g == target_glyph:
+                targets.add((x, y))
+        if not targets:
+            return f"No {target} found on current floor"
+
+        # Walkable check — anything that isn't a wall or unknown
+        walkable = frozenset({'.', '+', '\'', '>', '<', '_', '@', ','})
+        def is_walkable(x, y):
+            g = self._map_cells.get((x, y))
+            return g is not None and g in walkable
+
+        # BFS from player position
+        queue = deque()
+        queue.append((px, py, None))  # x, y, first_step_direction
+        visited = {(px, py)}
+        
+        DIRS = [
+            (0, -1, 'n'), (0, 1, 's'), (-1, 0, 'w'), (1, 0, 'e'),
+            (-1, -1, 'nw'), (1, -1, 'ne'), (-1, 1, 'sw'), (1, 1, 'se'),
+        ]
+
+        while queue:
+            x, y, first_dir = queue.popleft()
+            for dx, dy, dname in DIRS:
+                nx, ny = x + dx, y + dy
+                if (nx, ny) in visited:
+                    continue
+                if not is_walkable(nx, ny):
+                    continue
+                visited.add((nx, ny))
+                step_dir = first_dir or dname  # remember which direction we went first
+                if (nx, ny) in targets:
+                    dist = max(abs(nx - px), abs(ny - py))
+                    return f"Move {step_dir} (path to {target}, {dist} tiles away)"
+                queue.append((nx, ny, step_dir))
+
+        return f"No walkable path to {target} found"
+
     # Tile flag constants for monster behavior/status (from tile-flags.h)
     _BEH_MASK     = 0x00700000
     _STAB         = 0x00100000
@@ -347,7 +406,13 @@ class GameState:
                     nearest_up = (x, y, direction or "here", dist)
         
         if nearest_up:
-            parts.append(f"Nearest upstairs: {nearest_up[2]}, {nearest_up[3]} tiles")
+            # Add BFS pathfinding direction
+            path_hint = self.path_toward("upstairs")
+            if path_hint.startswith("Move "):
+                nav_dir = path_hint.split()[1]
+                parts.append(f"Nearest upstairs: {nearest_up[2]}, {nearest_up[3]} tiles (navigate: {nav_dir})")
+            else:
+                parts.append(f"Nearest upstairs: {nearest_up[2]}, {nearest_up[3]} tiles")
         else:
             parts.append("Nearest upstairs: none visible")
         

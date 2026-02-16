@@ -186,6 +186,18 @@ def _use_item_handler(dcss: DCSSGame, key: str) -> str:
         return f"Error using item: {str(e)}"
 
 
+def _navigate(dcss: DCSSGame, target: str) -> str:
+    """Pathfind to target and move one step."""
+    result = dcss.path_toward(target)
+    if not result.startswith("Move "):
+        return result  # Error message
+    # Extract direction from "Move sw (path to upstairs, 15 tiles away)"
+    direction = result.split()[1]
+    move_result = dcss.move(direction)
+    msg = " ".join(move_result) if isinstance(move_result, list) else str(move_result)
+    return f"[Navigating to {target}: moved {direction}] {msg}"
+
+
 def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
     """Build provider-agnostic tool definitions.
 
@@ -290,6 +302,19 @@ def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
     # Set default messages for handlers
     move_handler = tools[-1]["handler"]
     move_handler._default_msg = "Moved."
+
+    tools.append({
+        "name": "navigate",
+        "description": "Pathfind and move one step toward a landmark (BFS). Use when fleeing to stairs or heading to an altar — handles wall navigation automatically. Call repeatedly to keep moving.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "target": {"type": "string", "description": "Target landmark: 'upstairs', 'downstairs', or 'altar'", "default": "upstairs"}
+            },
+            "required": []
+        },
+        "handler": lambda params: _navigate(dcss, params.get("target", "upstairs"))
+    })
 
     tools.append({
         "name": "auto_explore",
