@@ -90,10 +90,17 @@ class DCSSDriver:
             return False
 
     def load_system_prompt(self) -> str:
-        """Load system prompt from file."""
+        """Load system prompt from file, adjusting for narration config."""
         prompt_path = Path(__file__).parent.parent / "system_prompt.md"
         with open(prompt_path, 'r') as f:
             system_prompt = f.read()
+
+        # Strip narration instructions when narration is disabled
+        if self.config["narrate_interval"] == 0:
+            system_prompt = "\n".join(
+                line for line in system_prompt.split("\n")
+                if "narrate" not in line.lower() or "narrate_interval" in line.lower()
+            )
 
         return system_prompt
 
@@ -495,6 +502,8 @@ async def main():
                         help="Play one game then exit")
     parser.add_argument("--narrate-interval", dest="narrate_interval", type=int, default=None,
                         help=f"Actions between forced narrations, 0=disable (default: {DEFAULTS['narrate_interval']})")
+    parser.add_argument("--no-narrate", dest="no_narrate", action="store_true", default=False,
+                        help="Disable narration entirely (shortcut for --narrate-interval 0)")
     parser.add_argument("--analyzer-model", dest="analyzer_model", default=None,
                         help=f"Model for post-death analysis (default: {DEFAULTS['analyzer_model']})")
     parser.add_argument("--no-analyzer", dest="analyzer_enabled", action="store_false", default=None,
@@ -517,6 +526,9 @@ async def main():
         cli_dict["analyzer_enabled"] = False
     else:
         cli_dict.pop("analyzer_enabled", None)
+    if args.no_narrate:
+        cli_dict["narrate_interval"] = 0
+    cli_dict.pop("no_narrate", None)
 
     config = load_config(cli_dict)
     driver = DCSSDriver(config)

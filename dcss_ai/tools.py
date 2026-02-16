@@ -2,6 +2,7 @@
 """DCSS game tools - provider-agnostic tool definitions."""
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
