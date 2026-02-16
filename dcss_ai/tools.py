@@ -151,7 +151,7 @@ def _use_item_handler(dcss: DCSSGame, key: str) -> str:
             return dcss.wield(key)
         elif base_type == 2:  # armour
             if equipped:
-                return dcss.take_off_armour(key)
+                return f"{item_name} is already equipped. Use drop_item('{key}') to drop it."
             return dcss.wear(key)
         elif base_type == 7:  # potion
             return dcss.quaff(key)
@@ -159,7 +159,7 @@ def _use_item_handler(dcss: DCSSGame, key: str) -> str:
             return dcss.read_scroll(key)
         elif base_type == 6:  # jewellery
             if equipped:
-                return dcss.remove_jewelry(key)
+                return f"{item_name} is already equipped. Use drop_item('{key}') to drop it."
             return dcss.put_on_jewelry(key)
         elif base_type == 3:  # wand
             return dcss.evoke(key)
