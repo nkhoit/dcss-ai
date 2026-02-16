@@ -121,20 +121,31 @@ class GameActions:
             logger.debug(f"interlevel_travel: got menu, sending destination '{destination}'")
             self._ws.send_key(destination)
             time.sleep(0.3)
-            # Check if menu is still open (might need enter)
+            # Check if menu is still open or travel was rejected
             msgs2 = self._ws.recv_messages(timeout=0.5)
             still_menu = False
             for msg in msgs2:
                 self._process_msg(msg)
-                if msg.get("msg") == "menu":
+                mt = msg.get("msg")
+                text = msg.get("text", "")
+                if mt == "menu":
                     still_menu = True
+                # Check for failure messages before waiting
+                if mt == "msgs":
+                    for m in msg.get("messages", []):
+                        t = m.get("text", "").lower()
+                        if "monsters nearby" in t or "can't go" in t:
+                            self._ws.send_key("key_esc")
+                            time.sleep(0.2)
+                            self._ws.recv_messages(timeout=0.3)
+                            return ["[Can't auto-travel — monsters nearby! Use move() to walk toward stairs manually.]"]
             if still_menu:
                 self._ws.send_key("key_enter")
                 time.sleep(0.3)
             result = self._act(timeout=15.0)
             recent = " ".join(result).lower()
-            if "can't go down" in recent or "can't go up" in recent:
-                return [f"[Interlevel travel failed — no reachable stairs. Use get_landmarks() to find stairs and move() toward them.]"]
+            if "can't go down" in recent or "can't go up" in recent or "monsters nearby" in recent:
+                return [f"[Can't auto-travel — monsters nearby! Use move() to walk toward stairs manually.]"]
             return result
         else:
             # No prompt appeared — escape anything leftover
