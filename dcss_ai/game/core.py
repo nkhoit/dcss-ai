@@ -290,6 +290,7 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
                     logger.info(f"Game closed (death). keys={keys}")
                     self._is_dead = True
                     self._in_game = False
+                    self._deaths += 1
                 elif mt in ("ui-push", "ui-state"):
                     ui_type = msg.get("type", "unknown")
                     logger.info(f"UI popup ({mt}) type={ui_type} during _act (keys={keys})")

@@ -206,7 +206,7 @@ class DCSSDriver:
             self.dcss._session_ended = False  # reset for new session
             prompt = kickoff_prompt
             retries = 0
-            deaths_before = self.dcss._deaths
+            self.dcss._is_dead = False  # reset for new game
             wins_before = self.dcss._wins
             nudge_count = 0  # consecutive SDK completions without tool calls
 
@@ -220,10 +220,10 @@ class DCSSDriver:
                     
                     if result.completed:
                         # SDK thinks it's done — but check if the game actually ended
-                        if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
+                        if self.dcss._is_dead or self.dcss._wins > wins_before:
                             self.logger.info("Session completed — game ended (death/win)")
                             # Record game to knowledge base
-                            if self.dcss._deaths > deaths_before:
+                            if self.dcss._is_dead:
                                 game_data = self.capture_death_data()
                                 game_data["outcome"] = "death"
                                 self.kb.record_game(game_data)
@@ -259,7 +259,7 @@ class DCSSDriver:
                                 
                                 # Auto-inject state for new session
                                 try:
-                                    if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                    if self.dcss._in_game and not (self.dcss._is_dead or self.dcss._wins > wins_before):
                                         prompt = self.build_turn_prompt("You are continuing a game already in progress. Keep playing.")
                                     else:
                                         prompt = "You are continuing a game already in progress. Keep playing."
@@ -270,7 +270,7 @@ class DCSSDriver:
                                 
                                 # Auto-inject state for nudge
                                 try:
-                                    if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                    if self.dcss._in_game and not (self.dcss._is_dead or self.dcss._wins > wins_before):
                                         prompt = self.build_turn_prompt("The game is still in progress. You are autonomous — DO NOT stop playing. DO NOT ask for user input. Call a tool and keep going.")
                                     else:
                                         prompt = "The game is still in progress. You are autonomous — DO NOT stop playing. DO NOT ask for user input. Call a tool and keep going."
@@ -280,9 +280,9 @@ class DCSSDriver:
                     else:
                         # Timeout or other failure
                         # Check if a game ended during this turn
-                        if self.dcss._deaths > deaths_before or self.dcss._wins > wins_before:
+                        if self.dcss._is_dead or self.dcss._wins > wins_before:
                             self.logger.info("Game ended (death/win detected), ending session")
-                            if self.dcss._deaths > deaths_before:
+                            if self.dcss._is_dead:
                                 game_data = self.capture_death_data()
                                 game_data["outcome"] = "death"
                                 self.kb.record_game(game_data)
@@ -310,7 +310,7 @@ class DCSSDriver:
                             
                             # Auto-inject state for retry after silence
                             try:
-                                if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                if self.dcss._in_game and not (self.dcss._is_dead or self.dcss._wins > wins_before):
                                     prompt = self.build_turn_prompt(continue_prompt)
                                 else:
                                     prompt = continue_prompt
@@ -325,7 +325,7 @@ class DCSSDriver:
                             
                             # Auto-inject state for retry after no tools
                             try:
-                                if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                if self.dcss._in_game and not (self.dcss._is_dead or self.dcss._wins > wins_before):
                                     prompt = self.build_turn_prompt(continue_prompt)
                                 else:
                                     prompt = continue_prompt
@@ -340,7 +340,7 @@ class DCSSDriver:
                             
                             # Auto-inject state for normal continuation
                             try:
-                                if self.dcss._in_game and not (self.dcss._deaths > deaths_before or self.dcss._wins > wins_before):
+                                if self.dcss._in_game and not (self.dcss._is_dead or self.dcss._wins > wins_before):
                                     prompt = self.build_turn_prompt(continue_prompt)
                                 else:
                                     prompt = continue_prompt
