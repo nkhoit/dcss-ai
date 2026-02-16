@@ -270,9 +270,10 @@ class GameActions:
 
     def auto_play(self, hp_threshold: int = 50, max_actions: int = 50,
                   stop_on_items: bool = True, stop_on_altars: bool = True,
-                  auto_descend: bool = False) -> str:
+                  auto_descend: bool = False, max_enemies: int = 3) -> str:
         max_actions = min(max_actions, 100)  # Hard cap
         hp_threshold = max(hp_threshold, 30)  # Don't let model set suicidal thresholds
+        max_enemies = max(max_enemies, 2)  # At least stop at 2 non-trivial
         """Autonomous play loop: explore, fight trivial enemies, rest, repeat.
         
         Returns a structured report of what happened plus the stop reason.
@@ -461,7 +462,7 @@ class GameActions:
                     # Check for multiple enemies — only stop if any are non-trivial
                     remaining = self.get_nearby_enemies()
                     non_trivial = [e for e in remaining if e.get("threat") not in ("trivial", "easy")]
-                    if len(remaining) >= 3 and non_trivial:
+                    if len(remaining) >= max_enemies and non_trivial:
                         names = [e['name'] for e in remaining[:5]]
                         stop_reason = f"multiple enemies ({len(remaining)}): {', '.join(names)}"
                         break

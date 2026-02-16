@@ -326,6 +326,7 @@ def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
                 "stop_on_items": {"type": "boolean", "description": "Stop when equipment (weapons/armour/jewellery) is found (default true)", "default": True},
                 "stop_on_altars": {"type": "boolean", "description": "Stop when a god altar is found (default true)", "default": True},
                 "auto_descend": {"type": "boolean", "description": "Automatically descend stairs when floor is clear (default false)", "default": False},
+                "max_enemies": {"type": "integer", "description": "Stop when this many non-trivial enemies are nearby (default 3). Trivial-only packs are always fought.", "default": 3},
             },
             "required": []
         },
@@ -335,6 +336,7 @@ def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
             stop_on_items=params.get("stop_on_items", True),
             stop_on_altars=params.get("stop_on_altars", True),
             auto_descend=params.get("auto_descend", False),
+            max_enemies=params.get("max_enemies", 3),
         )
     })
 
