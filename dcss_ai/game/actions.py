@@ -94,15 +94,18 @@ class GameActions:
             mt = msg.get("msg")
             mode = msg.get("mode")
             logger.debug(f"interlevel_travel: msg={mt}, mode={mode}")
-            if mt == "input_mode" and mode == 7:
+            if mt == "input_mode" and mode in (7, 0):
+                got_prompt = True
+            elif mt == "menu":
+                # WebTiles may use a menu for the travel prompt
                 got_prompt = True
         if got_prompt:
             # Send destination (e.g. ">" for nearest downstairs)
-            # Need to type the destination and press enter
             self._ws.send_key(destination)
             self._ws.send_key("key_enter")
-            # Wait for travel to complete or be interrupted (may take a while)
-            result = self._act(timeout=15.0)  # longer timeout for auto-travel
+            time.sleep(0.3)
+            # Wait for travel to complete or be interrupted
+            result = self._act(timeout=15.0)
             return result
         else:
             # No prompt appeared — escape anything leftover
