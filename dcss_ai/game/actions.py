@@ -387,8 +387,24 @@ class GameActions:
                         break
                 else:
                     # All enemies are trivial/easy — auto fight
+                    turn_before_fight = self._turn
                     result = self.auto_fight()
                     actions += 1
+                    
+                    # If turn didn't advance, enemy is unreachable (behind wall etc)
+                    if self._turn == turn_before_fight:
+                        # Skip fighting, try exploring instead
+                        fight_actions_without_kill = 0
+                        turn_before = self._turn
+                        result = self.auto_explore()
+                        actions += 1
+                        if "Explore interrupted" in " ".join(result):
+                            continue
+                        if "Floor fully explored" in " ".join(result) or turn_before == self._turn:
+                            stop_reason = "floor explored (unreachable enemies remain)"
+                            break
+                        continue
+                    
                     fight_actions_without_kill += 1
                     text = " ".join(result)
                     
