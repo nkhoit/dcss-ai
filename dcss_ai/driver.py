@@ -112,6 +112,12 @@ class DCSSDriver:
         """
         state = self.dcss.get_state_text()
         
+        # Auto-update overlay every turn
+        try:
+            self.dcss.update_overlay()
+        except Exception:
+            pass
+        
         # Get current place/xl for knowledge filtering
         try:
             stats = self.dcss.get_stats()

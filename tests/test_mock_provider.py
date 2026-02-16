@@ -142,7 +142,7 @@ class TestMockProvider:
         """Test overlay/bookkeeping tools that don't need a running game."""
         script = [
             {"name": "new_attempt", "args": {}},
-            {"name": "update_overlay", "args": {"thought": "Testing overlay"}},
+            {"name": "narrate", "args": {"thought": "Testing narration"}},
             {"name": "new_attempt", "args": {}},
             {"stop": True},
         ]
