@@ -312,7 +312,23 @@ class DCSSGame(GameState, GameActions, UIHandler, OverlayStats):
                 extra = self._ws.recv_messages(timeout=0.1)
                 for msg in extra:
                     self._process_msg(msg)
+                    mt = msg.get("msg")
+                    if mt == "close":
+                        logger.info(f"Game closed (death) in extra recv. keys={keys}")
+                        self._is_dead = True
+                        self._in_game = False
+                        self._deaths += 1
                 break
+
+        # Fallback death detection from game messages
+        if not self._is_dead and self._messages:
+            for m in self._messages[-5:]:
+                if "You die..." in m:
+                    logger.info(f"Death detected from message text (close msg may be delayed). keys={keys}")
+                    self._is_dead = True
+                    self._in_game = False
+                    self._deaths += 1
+                    break
 
         if not got_input and not self._is_dead:
             self._consecutive_timeouts += 1
