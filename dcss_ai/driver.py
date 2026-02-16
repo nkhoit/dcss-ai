@@ -124,7 +124,7 @@ class DCSSDriver:
 
         continue_prompt = (
             "You are autonomous — there is no human to respond. NEVER say 'let me know' or wait for input. "
-            "Call get_stats() to check your state, then keep playing. Do NOT stop until the game ends."
+            "Keep playing. Do NOT stop until the game ends."
         )
 
         try:
@@ -341,9 +341,9 @@ async def main():
     parser.add_argument("--provider", default=None,
                         help=f"LLM provider (default: {DEFAULTS['provider']})")
     parser.add_argument("--base-url", dest="base_url", default=None,
-                        help="Base URL for OpenAI-compatible provider")
+                        help="(reserved for future providers)")
     parser.add_argument("--api-key", dest="api_key", default=None,
-                        help="API key for OpenAI-compatible provider")
+                        help="(reserved for future providers)")
     parser.add_argument("--model", default=None,
                         help=f"Model to use (default: {DEFAULTS['model']})")
     parser.add_argument("--single", action="store_true", default=False,

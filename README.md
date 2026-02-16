@@ -4,7 +4,7 @@ An autonomous AI agent that plays [Dungeon Crawl Stone Soup](https://crawl.devel
 
 The AI calls game tools directly — move, fight, explore, use items — through a pure-Python WebSocket connection to a local DCSS webtiles server. Each game is one LLM session; accumulated learnings persist across games in `learnings.md`.
 
-Supports multiple LLM providers: GitHub Copilot SDK, OpenAI, Ollama, Groq, or any OpenAI-compatible API.
+Uses the GitHub Copilot SDK for LLM integration.
 
 ## How It Works
 
@@ -27,7 +27,7 @@ driver.py — Game loop (infinite: play → die → learn → repeat)
 - **One session = one game.** Fresh LLM context each run. `learnings.md` carries wisdom between games.
 - **Tools, not code generation.** The AI calls discrete game actions — no REPL, no arbitrary code.
 - **Pure Python WebSocket client.** No Rust dependencies. Handles zlib decompression, message batching, keepalive pings, More prompts, and all DCSS protocol quirks.
-- **Provider-agnostic.** Swap LLM backends without changing game logic or tool definitions.
+- **Provider-agnostic architecture.** Currently uses GitHub Copilot SDK; provider abstraction allows adding new backends.
 
 ## Quick Start
 
@@ -52,31 +52,6 @@ cd server && docker compose up -d
 # Verify: http://localhost:8080 should show the DCSS lobby
 ```
 
-### Run with Ollama
-
-No API key needed — just a running [Ollama](https://ollama.com) instance:
-
-```bash
-python -m dcss_ai.driver \
-  --provider openai \
-  --base-url http://localhost:11434/v1 \
-  --model gemma3:12b-it-qat \
-  --username kurobot --password kurobot123 \
-  --single
-```
-
-### Run with OpenAI
-
-```bash
-export OPENAI_API_KEY=sk-...
-python -m dcss_ai.driver \
-  --provider openai \
-  --base-url https://api.openai.com/v1 \
-  --model gpt-4o \
-  --username kurobot --password kurobot123 \
-  --single
-```
-
 ### Run with GitHub Copilot SDK
 
 Requires [Copilot CLI](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-cli) (authenticated, Copilot Pro+ or Enterprise):
@@ -92,9 +67,7 @@ python -m dcss_ai.driver \
 ### CLI Reference
 
 ```
---provider    LLM provider: copilot, openai (default: copilot)
---base-url    Base URL for OpenAI-compatible providers
---api-key     API key (optional for Ollama, reads OPENAI_API_KEY if unset)
+--provider    LLM provider (default: copilot)
 --model       Model name (default: claude-sonnet-4)
 --server-url  DCSS webtiles WebSocket URL (default: ws://localhost:8080/socket)
 --username    DCSS account username (default: kurobot)
@@ -123,7 +96,7 @@ docker stop dcss-webtiles && docker rm dcss-webtiles
 
 ## Game API
 
-The `DCSSGame` class in [`game.py`](dcss_ai/game.py) provides a clean Python API over the DCSS webtiles protocol — state queries (free, no turn cost) and actions (movement, combat, items, abilities).
+The `DCSSGame` class in [`game/`](dcss_ai/game/) provides a clean Python API over the DCSS webtiles protocol — state queries (free, no turn cost) and actions (movement, combat, items, abilities).
 
 ## Credits
 
