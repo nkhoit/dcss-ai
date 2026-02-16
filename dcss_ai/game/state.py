@@ -77,7 +77,7 @@ class GameState:
             if not name or name == "?":
                 continue
             item = {
-                "slot": chr(ord('a') + slot) if slot < 26 else str(slot),
+                "slot": chr(ord('a') + slot) if slot < 26 else chr(ord('A') + slot - 26) if slot < 52 else str(slot),
                 "name": name,
                 "quantity": data.get("quantity", 1),
             }

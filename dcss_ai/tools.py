@@ -131,8 +131,10 @@ def _use_item_handler(dcss: DCSSGame, key: str) -> str:
     """
     try:
         # Convert slot letter to numeric index
-        if len(key) == 1 and key.isalpha():
-            slot_idx = ord(key.lower()) - ord('a')
+        if len(key) == 1 and key.islower():
+            slot_idx = ord(key) - ord('a')
+        elif len(key) == 1 and key.isupper():
+            slot_idx = ord(key) - ord('A') + 26
         else:
             return f"Invalid slot key '{key}'."
 
@@ -402,8 +404,10 @@ def build_tools(dcss: DCSSGame, knowledge_base=None) -> List[Dict[str, Any]]:
 
     def _unequip_handler(params_dict):
         key = params_dict.get("key", "")
-        if len(key) == 1 and key.isalpha():
-            slot_idx = ord(key.lower()) - ord('a')
+        if len(key) == 1 and key.islower():
+            slot_idx = ord(key) - ord('a')
+        elif len(key) == 1 and key.isupper():
+            slot_idx = ord(key) - ord('A') + 26
         else:
             return f"Invalid slot key '{key}'."
         raw_item = dcss._inventory.get(slot_idx)
