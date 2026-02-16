@@ -49,6 +49,11 @@ class GameActions:
         return self._act("key_tab")
 
     def rest(self) -> List[str]:
+        # Check for visible enemies first
+        enemies = self.get_nearby_enemies()
+        if enemies:
+            names = [e["name"] for e in enemies[:3]]
+            return [f"Can't rest — enemies in sight: {', '.join(names)}. Kill or flee first."]
         return self._act("5")
 
     def wait_turn(self) -> List[str]:
