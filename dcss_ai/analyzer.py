@@ -88,6 +88,8 @@ def _format_death_context(
     if existing_learnings:
         parts.append(f"\n## Existing Learnings (don't duplicate)\n{existing_learnings}")
 
+    parts.append("\nRespond with ONLY a JSON object. No markdown, no commentary, no questions.")
+
     return "\n".join(parts)
 
 
