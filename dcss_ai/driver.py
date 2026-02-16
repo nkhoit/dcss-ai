@@ -233,29 +233,37 @@ class DCSSDriver:
                         if self.dcss._is_dead or self.dcss._wins > wins_before:
                             self.logger.info("Session completed — game ended (death/win)")
                             # Record game to knowledge base
-                            if self.dcss._is_dead:
-                                game_data = self.capture_death_data()
-                                game_data["outcome"] = "death"
-                                self.kb.record_game(game_data)
-                                self.kb.update_meta(game_data)
-                                notepad = self.dcss.read_notes()
-                                await self.analyzer.apply(game_data, notepad=notepad)
-                                self.logger.info(f"Death recorded: {game_data['place']} XL{game_data['xl']}")
-                            elif self.dcss._wins > wins_before:
-                                game_data = self.capture_death_data()  # same data capture
-                                game_data["outcome"] = "win"
-                                game_data["cause"] = "Won the game!"
-                                self.kb.record_game(game_data)
-                                self.kb.update_meta(game_data)
-                                self.logger.info(f"Win recorded: {game_data['place']} XL{game_data['xl']}")
-                            self.logger.info(
-                                f"Session usage: {result.usage.get('api_calls', 0)} API calls, "
-                                f"{result.usage.get('input_tokens', 0):,} input tokens, "
-                                f"{result.usage.get('output_tokens', 0):,} output tokens, "
-                                f"{result.usage.get('cache_read_tokens', 0):,} cache read tokens, "
-                                f"{result.usage.get('premium_requests', 0)} premium requests, "
-                                f"{result.usage.get('total_duration_ms', 0)/1000:.1f}s total API time"
-                            )
+                            try:
+                                if self.dcss._is_dead:
+                                    game_data = self.capture_death_data()
+                                    game_data["outcome"] = "death"
+                                    self.kb.record_game(game_data)
+                                    self.kb.update_meta(game_data)
+                                    notepad = self.dcss.read_notes()
+                                    await self.analyzer.apply(game_data, notepad=notepad)
+                                    self.logger.info(f"Death recorded: {game_data['place']} XL{game_data['xl']}")
+                                elif self.dcss._wins > wins_before:
+                                    game_data = self.capture_death_data()
+                                    game_data["outcome"] = "win"
+                                    game_data["cause"] = "Won the game!"
+                                    self.kb.record_game(game_data)
+                                    self.kb.update_meta(game_data)
+                                    self.logger.info(f"Win recorded: {game_data['place']} XL{game_data['xl']}")
+                            except Exception as e:
+                                self.logger.error(f"Error recording game: {e}")
+                            # Log usage (safely)
+                            try:
+                                usage = result.usage if isinstance(result.usage, dict) else {}
+                                self.logger.info(
+                                    f"Session usage: {usage.get('api_calls', 0)} API calls, "
+                                    f"{usage.get('input_tokens', 0):,} input tokens, "
+                                    f"{usage.get('output_tokens', 0):,} output tokens, "
+                                    f"{usage.get('cache_read_tokens', 0):,} cache read tokens, "
+                                    f"{usage.get('premium_requests', 0)} premium requests, "
+                                    f"{usage.get('total_duration_ms', 0)/1000:.1f}s total API time"
+                                )
+                            except Exception:
+                                pass
                             break
                         else:
                             # SDK ended but game is still going — auto-continue (not a retry)
@@ -293,21 +301,24 @@ class DCSSDriver:
                         # Check if a game ended during this turn
                         if self.dcss._is_dead or self.dcss._wins > wins_before:
                             self.logger.info("Game ended (death/win detected), ending session")
-                            if self.dcss._is_dead:
-                                game_data = self.capture_death_data()
-                                game_data["outcome"] = "death"
-                                self.kb.record_game(game_data)
-                                self.kb.update_meta(game_data)
-                                notepad = self.dcss.read_notes()
-                                await self.analyzer.apply(game_data, notepad=notepad)
-                                self.logger.info(f"Death recorded: {game_data['place']} XL{game_data['xl']}")
-                            elif self.dcss._wins > wins_before:
-                                game_data = self.capture_death_data()
-                                game_data["outcome"] = "win"
-                                game_data["cause"] = "Won the game!"
-                                self.kb.record_game(game_data)
-                                self.kb.update_meta(game_data)
-                                self.logger.info(f"Win recorded: {game_data['place']} XL{game_data['xl']}")
+                            try:
+                                if self.dcss._is_dead:
+                                    game_data = self.capture_death_data()
+                                    game_data["outcome"] = "death"
+                                    self.kb.record_game(game_data)
+                                    self.kb.update_meta(game_data)
+                                    notepad = self.dcss.read_notes()
+                                    await self.analyzer.apply(game_data, notepad=notepad)
+                                    self.logger.info(f"Death recorded: {game_data['place']} XL{game_data['xl']}")
+                                elif self.dcss._wins > wins_before:
+                                    game_data = self.capture_death_data()
+                                    game_data["outcome"] = "win"
+                                    game_data["cause"] = "Won the game!"
+                                    self.kb.record_game(game_data)
+                                    self.kb.update_meta(game_data)
+                                    self.logger.info(f"Win recorded: {game_data['place']} XL{game_data['xl']}")
+                            except Exception as e:
+                                self.logger.error(f"Error recording game: {e}")
                             break
 
                         elapsed_since_tool = _time.time() - session.last_tool_time
