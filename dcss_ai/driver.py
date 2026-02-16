@@ -126,7 +126,9 @@ class DCSSDriver:
             parts.append(f"[Knowledge]\n{knowledge}")
         parts.append(message)
         
-        return "\n\n".join(parts)
+        prompt = "\n\n".join(parts)
+        self.logger.debug(f"📋 Turn prompt:\n{prompt}")
+        return prompt
 
     def capture_death_data(self) -> dict:
         """Capture structured death data from game state.

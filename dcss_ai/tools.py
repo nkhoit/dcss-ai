@@ -606,18 +606,20 @@ def build_tools(dcss: DCSSGame) -> List[Dict[str, Any]]:
     
     # --- Narration ---
     
-    tools.append({
-        "name": "narrate",
-        "description": "Share your thoughts with stream viewers. MUST be called at least once every 5 actions. Think out loud: what do you see, what's your plan, what worries you, what excites you.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "thought": {"type": "string", "description": "Your inner monologue for viewers. Be natural, opinionated, and conversational. 2-3 sentences."}
+    narrate_interval = int(os.environ.get("DCSS_NARRATE_INTERVAL", "5"))
+    if narrate_interval > 0:
+        tools.append({
+            "name": "narrate",
+            "description": "Share your thoughts with stream viewers. MUST be called at least once every 5 actions. Think out loud: what do you see, what's your plan, what worries you, what excites you.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "thought": {"type": "string", "description": "Your inner monologue for viewers. Be natural, opinionated, and conversational. 2-3 sentences."}
+                },
+                "required": ["thought"]
             },
-            "required": ["thought"]
-        },
-        "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')},{int(time.time()*1000)%1000:03d} 💭 {params.get('thought', '')}\n"), sys.stdout.flush(), "[Narrated]")[4]
-    })
+            "handler": lambda params: (write_monologue(params.get('thought', '')), setattr(dcss, '_actions_since_narrate', 0), sys.stdout.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')},{int(time.time()*1000)%1000:03d} 💭 {params.get('thought', '')}\n"), sys.stdout.flush(), "[Narrated]")[4]
+        })
     
     # --- Game lifecycle ---
     
