@@ -463,7 +463,10 @@ class DCSSDriver:
         print(f"  Deaths:        {self.dcss._deaths}")
         print(f"  Wins:          {self.dcss._wins}")
         print(f"  Runtime:       {hours}h {mins}m {secs}s")
-        print(f"  Model:         {self.config["model"]}")
+        provider = self.config.get("provider", "unknown")
+        model = self.config["model"]
+        print(f"  Provider:      {provider}")
+        print(f"  Model:         {model}")
         print(f"  API calls:     {self.total_usage['api_calls']:,}")
         print(f"  Input tokens:  {self.total_usage['input_tokens']:,}")
         print(f"  Output tokens: {self.total_usage['output_tokens']:,}")
