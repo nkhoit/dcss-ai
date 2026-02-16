@@ -271,6 +271,7 @@ class GameActions:
     def auto_play(self, hp_threshold: int = 50, max_actions: int = 50,
                   stop_on_items: bool = True, stop_on_altars: bool = True,
                   auto_descend: bool = False) -> str:
+        max_actions = min(max_actions, 100)  # Hard cap
         """Autonomous play loop: explore, fight trivial enemies, rest, repeat.
         
         Returns a structured report of what happened plus the stop reason.
@@ -287,6 +288,7 @@ class GameActions:
         pickups = []
         stop_reason = "action limit reached"
         fight_actions_without_kill = 0
+        no_progress_count = 0
         
         def log(event: str):
             floor = f"{self._place}:{self._depth}" if self._place else "unknown"
@@ -349,6 +351,17 @@ class GameActions:
         
         while actions < max_actions:
             # --- Pre-action checks ---
+            turn_at_loop_start = self._turn
+            
+            # Check for no-progress loops (e.g. unreachable enemies)
+            if actions > 0 and self._turn == getattr(self, '_last_auto_play_turn', -1):
+                no_progress_count += 1
+                if no_progress_count >= 5:
+                    stop_reason = "no progress (turn not advancing)"
+                    break
+            else:
+                no_progress_count = 0
+            self._last_auto_play_turn = self._turn
             
             # Check for dangerous enemies
             dangerous = check_dangerous_enemies()
