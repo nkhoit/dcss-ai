@@ -138,17 +138,8 @@ class DCSSDriver:
         return prompt
 
     def capture_death_data(self) -> dict:
-        """Capture structured death data from game state.
-        
-        Returns:
-            Dict with death information for knowledge base
-        """
+        """Capture structured death data from game state."""
         from datetime import datetime
-        
-        try:
-            stats = self.dcss.get_stats()
-        except Exception:
-            stats = {}
         
         try:
             messages = self.dcss.get_messages()
@@ -173,15 +164,17 @@ class DCSSDriver:
         except Exception:
             last_messages = []
         
+        place = f"{self.dcss._place}:{self.dcss._depth}" if self.dcss._place else "unknown"
+        
         return {
             "timestamp": datetime.now().isoformat(),
-            "place": stats.get("place", "unknown"),
-            "xl": stats.get("xl", 0),
+            "place": place,
+            "xl": self.dcss._xl,
             "turn": getattr(self.dcss, '_turn_count', 0),
-            "hp_max": stats.get("hp_max", 0),
+            "hp_max": self.dcss._max_hp,
             "species": getattr(self.dcss, '_species', 'unknown'),
             "background": getattr(self.dcss, '_background', 'unknown'),
-            "god": stats.get("god", "none"),
+            "god": self.dcss._god or "none",
             "cause": cause,
             "inventory_summary": inv_summary,
             "nearby_enemies": enemy_names,
