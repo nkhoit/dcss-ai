@@ -79,19 +79,22 @@ class GameActions:
             result2 = self._interlevel_travel(">")
             if result2 is not None:
                 return result2
-            result.append("[Not standing on downstairs (>). Use auto_explore() to find stairs, or move to a '>' tile on the map first.]")
+            result.append("[Not on stairs. Use get_landmarks() to find stairs, then move() toward them step by step.]")
         return result
 
     def _interlevel_travel(self, destination: str) -> list:
         """Use G (interlevel travel) to auto-travel. Returns messages or None if failed."""
         import time
         self._ws.send_key("G")
-        time.sleep(0.15)
-        msgs = self._ws.recv_messages(timeout=0.5)
+        time.sleep(0.3)
+        msgs = self._ws.recv_messages(timeout=1.0)
         got_prompt = False
         for msg in msgs:
             self._process_msg(msg)
-            if msg.get("msg") == "input_mode" and msg.get("mode") == 7:
+            mt = msg.get("msg")
+            mode = msg.get("mode")
+            logger.debug(f"interlevel_travel: msg={mt}, mode={mode}")
+            if mt == "input_mode" and mode == 7:
                 got_prompt = True
         if got_prompt:
             # Send destination (e.g. ">" for nearest downstairs)
