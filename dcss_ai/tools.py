@@ -188,6 +188,8 @@ def _use_item_handler(dcss: DCSSGame, key: str) -> str:
 
 def _navigate(dcss: DCSSGame, target: str) -> str:
     """Pathfind to target and move one step."""
+    if dcss._current_menu or dcss._current_popup:
+        dcss.dismiss()
     result = dcss.path_toward(target)
     if not result.startswith("Move "):
         return result  # Error message
@@ -195,6 +197,10 @@ def _navigate(dcss: DCSSGame, target: str) -> str:
     direction = result.split()[1]
     move_result = dcss.move(direction)
     msg = " ".join(move_result) if isinstance(move_result, list) else str(move_result)
+    # If moving triggered a shop menu, dismiss it and report
+    if dcss._current_menu:
+        dcss.dismiss()
+        return f"[Navigating to {target}: moved {direction} but hit a shop. Dismissed and continuing.]"
     return f"[Navigating to {target}: moved {direction}] {msg}"
 
 

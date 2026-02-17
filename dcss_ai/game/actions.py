@@ -63,27 +63,43 @@ class GameActions:
         return self._act(".")
 
     def go_upstairs(self) -> List[str]:
+        if self._current_menu or self._current_popup:
+            self.dismiss()
         depth_before = self._depth
         place_before = self._place
         result = self._act("<")
-        if self._depth >= depth_before and self._place == place_before:
-            # Not on stairs — try interlevel travel (G then < at prompt)
+        # Check if a shop/menu opened instead of stairs
+        if self._current_menu:
+            self.dismiss()
             result2 = self._interlevel_travel("<")
             if result2 is not None:
                 return result2
-            result.append("[Not on stairs. Use get_landmarks() to find stairs, then move() toward them step by step.]")
+            return ["[Not on stairs (standing on a shop?). Move off this tile first, then try again.]"]
+        if self._depth >= depth_before and self._place == place_before:
+            result2 = self._interlevel_travel("<")
+            if result2 is not None:
+                return result2
+            result.append("[Not on stairs. Use navigate('upstairs') to pathfind there.]")
         return result
 
     def go_downstairs(self) -> List[str]:
+        if self._current_menu or self._current_popup:
+            self.dismiss()
         depth_before = self._depth
         place_before = self._place
         result = self._act(">")
-        if self._depth <= depth_before and self._place == place_before:
-            # Not on stairs — try interlevel travel (G then > at prompt)
+        # Check if a shop/menu opened instead of stairs
+        if self._current_menu:
+            self.dismiss()
             result2 = self._interlevel_travel(">")
             if result2 is not None:
                 return result2
-            result.append("[Not on stairs. Use get_landmarks() to find stairs, then move() toward them step by step.]")
+            return ["[Not on stairs (standing on a shop?). Move off this tile first, then try again.]"]
+        if self._depth <= depth_before and self._place == place_before:
+            result2 = self._interlevel_travel(">")
+            if result2 is not None:
+                return result2
+            result.append("[Not on stairs. Use navigate('downstairs') to pathfind there.]")
         return result
 
     def _interlevel_travel(self, destination: str) -> list:
@@ -428,6 +444,10 @@ class GameActions:
                         turn_before = self._turn
                         result = self.auto_explore()
                         actions += 1
+                        # Dismiss shop menus that open when exploring onto shop tiles
+                        if self._current_menu:
+                            self.dismiss()
+                            continue
                         if "Explore interrupted" in " ".join(result):
                             continue
                         if "Floor fully explored" in " ".join(result) or turn_before == self._turn:
