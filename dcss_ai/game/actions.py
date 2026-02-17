@@ -200,12 +200,16 @@ class GameActions:
             if msg.get("msg") == "input_mode" and msg.get("mode") in (4, 7):
                 targeting = True
         if targeting:
-            # Stage 2: send direction or auto-target
+            # Stage 2: aim and fire
             if direction:
+                # Send direction then Enter to confirm targeting
                 dir_key = self._dir_key(direction)
+                self._ws.send_key(dir_key)
+                time.sleep(0.1)
+                result = self._act("key_enter")
             else:
-                dir_key = "."
-            result = self._act(dir_key)
+                # Auto-target: press Enter/. to fire at default target
+                result = self._act("key_enter")
             # If spell didn't resolve (e.g. "can't see that place"),
             # we may still be in targeting mode — escape to clean up
             if any("can't see" in m.lower() or "can't reach" in m.lower() for m in result):
@@ -213,6 +217,12 @@ class GameActions:
                 time.sleep(0.1)
                 self._ws.recv_messages(timeout=0.3)  # drain
                 result.append("[Spell targeting cancelled — target not visible. Try without direction to auto-target nearest enemy.]")
+            # If still stuck in targeting/aiming mode, escape
+            elif any("aiming:" in m.lower() or "press:" in m.lower() for m in result):
+                self._ws.send_key("key_esc")
+                time.sleep(0.1)
+                self._ws.recv_messages(timeout=0.3)
+                result.append("[Spell targeting failed — escaped aiming mode. Try cast_spell without direction.]")
             return result
         else:
             # Spell was instant or failed — drain remaining
