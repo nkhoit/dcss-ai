@@ -16,6 +16,9 @@ def write_monologue(text: str) -> None:
     text = text.strip()
     if not text:
         return
+    # Skip raw JSON (e.g. analyzer output) from overlay
+    if text.startswith('{') or text.startswith('```'):
+        return
     send_thought(text)
 
 
