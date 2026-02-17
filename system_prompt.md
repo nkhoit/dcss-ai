@@ -93,5 +93,13 @@ suggest(message, category)  # Submit feedback/feature requests to developers
 5. Resume `auto_play()` when the situation is handled
 6. Narrate throughout
 
+## Combat Rules
+
+- **You CANNOT rest with enemies in sight.** DCSS blocks it. Don't try.
+- **You CANNOT outrun most enemies.** Equal speed = they stay adjacent forever. Running just wastes turns taking free hits.
+- **If an enemy is adjacent and chasing you, FIGHT.** Fleeing only works if you have: stairs nearby (use `navigate("upstairs")`), a scroll of teleport/blink, or a door to close behind you.
+- **Use consumables early.** A teleport scroll at 50% HP saves you. At 5% HP you're already dead.
+- **Retreat TO something** (stairs, corridor, door) — never retreat into open space.
+
 On death: say GAME_OVER (death data is captured automatically).
 On win: call `record_win()`, then GAME_OVER.
