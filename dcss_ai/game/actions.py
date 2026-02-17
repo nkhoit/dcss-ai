@@ -437,6 +437,9 @@ class GameActions:
             enemies = self.get_nearby_enemies()
             
             if enemies:
+                # Casters (MP > 1) should handle combat manually with spells
+                is_caster = self._max_mp > 1
+                
                 # Enemies present — fight if trivial/easy, otherwise stop
                 for e in enemies:
                     threat = e.get("threat", "trivial")
@@ -444,7 +447,12 @@ class GameActions:
                         stop_reason = f"dangerous enemy: {e['name']} ({e['direction']}, dist {e['distance']})"
                         break
                 else:
-                    # All enemies are trivial/easy — auto fight
+                    if is_caster:
+                        # Casters: stop and let model cast spells at range
+                        nearest = min(enemies, key=lambda e: e.get("distance", 99))
+                        stop_reason = f"enemy nearby (caster — use spells): {nearest['name']} ({nearest['direction']}, dist {nearest['distance']})"
+                        break
+                    # All enemies are trivial/easy — auto fight (melee only)
                     turn_before_fight = self._turn
                     result = self.auto_fight()
                     actions += 1
