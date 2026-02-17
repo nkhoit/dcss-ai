@@ -39,7 +39,9 @@ class GameActions:
             # Check if explore was interrupted by an enemy vs floor being done
             enemies = self.get_nearby_enemies()
             recent = " ".join(result).lower()
-            if enemies or "is nearby" in recent or "comes into view" in recent:
+            if "no reachable target" in recent:
+                result.append("[Floor explored but unreachable enemies remain (behind water/lava). Ignore them and go downstairs.]")
+            elif enemies or "is nearby" in recent or "comes into view" in recent:
                 result.append("[Explore interrupted by enemy.]")
             else:
                 result.append("[Floor fully explored. Call go_downstairs() to auto-travel to the nearest downstairs and descend.]")
@@ -450,8 +452,8 @@ class GameActions:
                             continue
                         if "Explore interrupted" in " ".join(result):
                             continue
-                        if "Floor fully explored" in " ".join(result) or turn_before == self._turn:
-                            stop_reason = "floor explored (unreachable enemies remain)"
+                        if "unreachable enemies" in " ".join(result) or "Floor fully explored" in " ".join(result) or turn_before == self._turn:
+                            stop_reason = "floor explored (unreachable enemies behind water/lava — ignore and go downstairs)"
                             break
                         continue
                     
